@@ -7,7 +7,7 @@ import QRCode from "qrcode";
 import { log } from "./index";
 import pino from "pino";
 
-const logger = pino({ level: "silent" });
+const logger = pino({ level: "warn" });
 
 function loadBaileys() {
   const _require = typeof require !== "undefined" ? require : createRequire(import.meta.url);
@@ -155,7 +155,15 @@ async function connectSession(session: WASession): Promise<void> {
   if (session.status === "terminated") return;
 
   const { state, saveCreds } = await useMultiFileAuthState(session.authDir);
-  const { version } = await fetchLatestBaileysVersion();
+  let version: [number, number, number];
+  try {
+    const fetched = await fetchLatestBaileysVersion();
+    version = fetched.version;
+    log(`Using WhatsApp version: ${version.join(".")}`, "whatsapp");
+  } catch (e) {
+    version = [2, 3000, 1015901307];
+    log(`Failed to fetch version, using fallback: ${version.join(".")}`, "whatsapp");
+  }
 
   log(`Connecting session ${session.sessionId} (attempt ${session.retryCount + 1}/${session.maxRetries}), registered: ${state.creds.registered}`, "whatsapp");
 
@@ -167,10 +175,13 @@ async function connectSession(session: WASession): Promise<void> {
     },
     logger,
     printQRInTerminal: false,
-    browser: Browsers.macOS("Google Chrome"),
+    browser: Browsers.macOS("Chrome"),
     generateHighQualityLinkPreview: false,
     syncFullHistory: false,
     defaultQueryTimeoutMs: undefined,
+    connectTimeoutMs: 60000,
+    keepAliveIntervalMs: 25000,
+    markOnlineOnConnect: false,
   });
 
   session.socket = sock;
@@ -179,6 +190,7 @@ async function connectSession(session: WASession): Promise<void> {
 
   sock.ev.on("connection.update", async (update) => {
     const { connection, lastDisconnect, qr } = update;
+    log(`Session ${session.sessionId} connection.update: connection=${connection}, qr=${qr ? "present" : "none"}, lastDisconnect=${lastDisconnect ? JSON.stringify(lastDisconnect.error?.message) : "none"}`, "whatsapp");
 
     if (session.connectionMethod === "pairing" && !state.creds.registered && !pairingCodeRequested) {
       if (connection === "connecting" || qr) {
