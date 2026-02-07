@@ -1,0 +1,50 @@
+2026-02-07T12:14:47.722012515Z 
+2026-02-07T12:14:47.722030065Z > rest-express@1.0.0 start
+2026-02-07T12:14:47.722034845Z > NODE_ENV=production node dist/index.cjs
+2026-02-07T12:14:47.722037605Z 
+2026-02-07T12:14:50.323386465Z Looking for static files at: /opt/render/project/src/dist/public
+2026-02-07T12:14:50.620191879Z 12:14:50 PM [express] serving on port 10000
+2026-02-07T12:14:56.223440497Z ==> Your service is live 🎉
+2026-02-07T12:14:56.353359816Z ==> 
+2026-02-07T12:14:56.3568276Z ==> ///////////////////////////////////////////////////////////
+2026-02-07T12:14:56.360410363Z ==> 
+2026-02-07T12:14:56.363562223Z ==> Available at your primary URL https://pairsilentwolf.onrender.com
+2026-02-07T12:14:56.366862285Z ==> 
+2026-02-07T12:14:56.369761386Z ==> ///////////////////////////////////////////////////////////
+2026-02-07T12:15:17.74822853Z 12:15:17 PM [whatsapp] Creating pairing session for 254733961184
+2026-02-07T12:15:18.325308976Z 12:15:18 PM [whatsapp] Connecting session wolf_20a2f8ab (attempt 1/10), registered: false
+2026-02-07T12:15:18.326017911Z 12:15:18 PM [whatsapp] Failed to create session wolf_20a2f8ab: (0 , _e.default) is not a function
+2026-02-07T12:15:18.327361211Z 12:15:18 PM [express] POST /api/generate-session 200 in 581ms :: {"sessionId":"wolf_20a2f8ab","pairingCode":null,"qrCode":null,"status":"failed","message":"Connecting to WhatsApp servers... Pairing code will be sent via WebSocket."}
+2026-02-07T12:18:41.956750971Z ==> Running 'npm run start'
+2026-02-07T12:18:43.051298618Z 
+2026-02-07T12:18:43.051333278Z > rest-express@1.0.0 start
+2026-02-07T12:18:43.051338628Z > NODE_ENV=production node dist/index.cjs
+2026-02-07T12:18:43.051341339Z 
+2026-02-07T12:18:45.752258834Z Looking for static files at: /opt/render/project/src/dist/public
+2026-02-07T12:18:45.859953358Z 12:18:45 PM [express] serving on port 10000
+2026-02-07T12:19:22.603178911Z ==> Deploying...
+2026-02-07T12:19:22.908697903Z ==> Setting WEB_CONCURRENCY=1 by default, based on available CPUs in the instance
+2026-02-07T12:19:43.496470538Z ==> Running 'npm run start'
+2026-02-07T12:19:44.498771738Z 
+2026-02-07T12:19:44.498801139Z > rest-express@1.0.0 start
+2026-02-07T12:19:44.498806289Z > NODE_ENV=production node dist/index.cjs
+2026-02-07T12:19:44.498808509Z 
+2026-02-07T12:19:46.905339235Z Looking for static files at: /opt/render/project/src/dist/public
+2026-02-07T12:19:47.208660359Z 12:19:47 PM [express] serving on port 10000
+2026-02-07T12:19:56.555966473Z ==> Your service is live 🎉
+2026-02-07T12:19:56.804864288Z ==> 
+2026-02-07T12:19:56.808677623Z ==> ///////////////////////////////////////////////////////////
+2026-02-07T12:19:56.811838395Z ==> 
+2026-02-07T12:19:56.815081278Z ==> Available at your primary URL https://pairsilentwolf.onrender.com
+2026-02-07T12:19:56.819068646Z ==> 
+2026-02-07T12:19:56.822281939Z ==> ///////////////////////////////////////////////////////////
+2026-02-07T12:24:55.40108353Z ==> Detected service running on port 10000
+2026-02-07T12:24:55.595492711Z ==> Docs on specifying a port: https://render.com/docs/web-services#port-binding
+2026-02-07T12:34:14.774101527Z 12:34:14 PM [whatsapp] Creating pairing session for 254733961184
+2026-02-07T12:34:15.320136731Z 12:34:15 PM [whatsapp] Connecting session wolf_000bebce (attempt 1/10), registered: false
+2026-02-07T12:34:15.320906235Z 12:34:15 PM [whatsapp] Failed to create session wolf_000bebce: (0 , _e.default) is not a function
+2026-02-07T12:34:15.322545636Z 12:34:15 PM [express] POST /api/generate-session 200 in 550ms :: {"sessionId":"wolf_000bebce","pairingCode":null,"qrCode":null,"status":"failed","message":"Connecting to WhatsApp servers... Pairing code will be sent via WebSocket."}
+2026-02-07T13:04:32.113437099Z 1:04:32 PM [whatsapp] Creating pairing session for 254733961184
+2026-02-07T13:04:32.213992619Z 1:04:32 PM [whatsapp] Connecting session wolf_a3f08fe4 (attempt 1/10), registered: false
+2026-02-07T13:04:32.214722062Z 1:04:32 PM [whatsapp] Failed to create session wolf_a3f08fe4: (0 , _e.default) is not a function
+2026-02-07T13:04:32.215424504Z 1:04:32 PM [express] POST /api/generate-session 200 in 103ms :: {"sessionId":"wolf_a3f08fe4","pairingCode":null,"qrCode":null,"status":"failed","message":"Connecting to WhatsApp servers... Pairing code will be sent via WebSocket."}
