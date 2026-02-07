@@ -4,16 +4,16 @@
   "compilerOptions": {
     "incremental": true,
     "tsBuildInfoFile": "./node_modules/typescript/tsbuildinfo",
-    "outDir": "./dist", // ADD THIS
-    "module": "CommonJS", // CHANGE from ESNext to CommonJS
-    "target": "ES2020", // ADD THIS
+    "outDir": "./dist", 
+    "module": "CommonJS",
+    "target": "ES2020", 
     "strict": true,
     "lib": ["esnext", "dom", "dom.iterable"],
     "jsx": "preserve",
     "esModuleInterop": true,
     "skipLibCheck": true,
     "allowImportingTsExtensions": true,
-    "moduleResolution": "node", // CHANGE from bundler to node
+    "moduleResolution": "node",
     "baseUrl": ".",
     "types": ["node", "vite/client"],
     "paths": {
