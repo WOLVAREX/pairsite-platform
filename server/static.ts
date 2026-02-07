@@ -18,15 +18,12 @@
 //   });
 // }
 
-
-
-
 import express, { type Express } from "express";
 import fs from "fs";
 import path from "path";
 
 export function serveStatic(app: Express) {
-  // The client files are built to dist/public, not just public
+  // Files are in dist/public (since this file is compiled to dist/static.cjs)
   const distPath = path.resolve(__dirname, "public");
   
   console.log(`Looking for static files at: ${distPath}`);
@@ -42,7 +39,8 @@ export function serveStatic(app: Express) {
   app.use(express.static(distPath));
 
   // Handle SPA routing - serve index.html for all non-API routes
-  app.get("*", (req, res, next) => {
+  // FIX: Use a proper route handler instead of "*"
+  app.get("/*", (req, res, next) => {
     // Skip API routes
     if (req.path.startsWith("/api")) {
       return next();
