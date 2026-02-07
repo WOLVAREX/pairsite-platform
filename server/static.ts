@@ -19,8 +19,6 @@
 // }
 
 
-
-
 import express, { type Express } from "express";
 import fs from "fs";
 import path from "path";
@@ -39,14 +37,19 @@ export function serveStatic(app: Express) {
   // Serve static files
   app.use(express.static(distPath));
   
-  // Serve index.html for the root route
-  app.get("/", (req, res) => {
-    res.sendFile(path.join(distPath, "index.html"));
-  });
-  
-  // For SPA routing - USE REGEX INSTEAD OF STRING
-  // This regex matches any path that doesn't start with /api
-  app.get(/^\/(?!api).*$/, (req, res) => {
+  // Serve index.html for all non-API routes using middleware
+  app.use((req, res, next) => {
+    // Skip API routes
+    if (req.path.startsWith("/api")) {
+      return next();
+    }
+    
+    // Skip if it's a file request (has extension)
+    if (path.extname(req.path)) {
+      return next();
+    }
+    
+    // Serve index.html for SPA routes
     res.sendFile(path.join(distPath, "index.html"));
   });
 }
