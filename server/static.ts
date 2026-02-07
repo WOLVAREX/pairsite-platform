@@ -21,8 +21,6 @@
 
 
 
-
-
 import express, { type Express } from "express";
 import fs from "fs";
 import path from "path";
@@ -38,7 +36,7 @@ export function serveStatic(app: Express) {
     );
   }
 
-  // Serve static files from the public directory
+  // Serve static files
   app.use(express.static(distPath));
   
   // Serve index.html for the root route
@@ -46,23 +44,9 @@ export function serveStatic(app: Express) {
     res.sendFile(path.join(distPath, "index.html"));
   });
   
-  // For SPA routing, serve index.html for all non-API routes
-  // This is the standard way to handle client-side routing
-  app.get("*", (req, res, next) => {
-    // Check if the request is for an API endpoint
-    if (req.path.startsWith("/api/")) {
-      return next(); // Let API routes handle it
-    }
-    
-    // Check if it's a file request (has an extension like .css, .js, .png, etc.)
-    const hasExtension = path.extname(req.path) !== "";
-    
-    if (hasExtension) {
-      // If it's a file request but static middleware didn't find it, return 404
-      return next();
-    }
-    
-    // Otherwise, it's a client-side route - serve index.html
+  // For SPA routing - USE REGEX INSTEAD OF STRING
+  // This regex matches any path that doesn't start with /api
+  app.get(/^\/(?!api).*$/, (req, res) => {
     res.sendFile(path.join(distPath, "index.html"));
   });
 }
