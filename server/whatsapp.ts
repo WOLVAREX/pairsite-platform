@@ -232,11 +232,15 @@ async function connectSession(session: WASession): Promise<void> {
         return;
       }
 
-      const shouldReconnect = !isLoggedOut || !isRegistered;
+      if (isLoggedOut) {
+        session.status = "failed";
+        notifyListeners(session, "status", { status: "failed", error: "Device logged out" });
+        return;
+      }
 
-      if (shouldReconnect && session.retryCount < session.maxRetries) {
+      if (session.retryCount < session.maxRetries) {
         session.retryCount++;
-        const delay = Math.min(2000 * session.retryCount, 10000);
+        const delay = Math.min(3000 * session.retryCount, 15000);
         log(`Reconnecting session ${session.sessionId} in ${delay}ms (attempt ${session.retryCount})...`, "whatsapp");
         notifyListeners(session, "status", { status: "connecting", message: `Reconnecting (attempt ${session.retryCount})...` });
 
@@ -252,7 +256,7 @@ async function connectSession(session: WASession): Promise<void> {
         }, delay);
       } else {
         session.status = "failed";
-        notifyListeners(session, "status", { status: "failed", error: isLoggedOut ? "Device logged out" : "Max reconnection attempts reached" });
+        notifyListeners(session, "status", { status: "failed", error: "Max reconnection attempts reached" });
       }
     }
 
