@@ -32,14 +32,6 @@ const allowlist = [
   "zod-validation-error",
 ];
 
-// These packages must NEVER be bundled - they break when esbuild processes them
-const neverBundle = [
-  "@whiskeysockets/baileys",
-  "@hapi/boom",
-  "qrcode",
-  "pino",
-];
-
 async function buildAll() {
   await rm("dist", { recursive: true, force: true });
 
@@ -52,10 +44,7 @@ async function buildAll() {
     ...Object.keys(pkg.dependencies || {}),
     ...Object.keys(pkg.devDependencies || {}),
   ];
-  const externals = [...new Set([
-    ...allDeps.filter((dep) => !allowlist.includes(dep)),
-    ...neverBundle,
-  ])];
+  const externals = allDeps.filter((dep) => !allowlist.includes(dep));
 
   await esbuild({
     entryPoints: ["server/index.ts"],
