@@ -23,37 +23,34 @@
 
 
 
-
-
-
-
-
-
-
 import express, { type Express } from "express";
 import fs from "fs";
 import path from "path";
 
 export function serveStatic(app: Express) {
-  const distPath = path.resolve(__dirname, "public");
+  // Go up one level from dist to get to project root, then to public
+  const distPath = path.resolve(__dirname, "../public");
+  
+  console.log(`Looking for static files at: ${distPath}`);
   
   if (!fs.existsSync(distPath)) {
+    console.error(`ERROR: Could not find build directory: ${distPath}`);
     throw new Error(
-      `Could not find the build directory: ${distPath}, make sure to build the client first`,
+      `Could not find the build directory: ${distPath}`
     );
   }
 
-  // Serve static files from public directory
+  // Serve static files
   app.use(express.static(distPath));
 
-  // Handle all non-API routes by serving index.html (SPA routing)
+  // Handle SPA routing - serve index.html for all non-API routes
   app.get("*", (req, res, next) => {
     // Skip API routes
     if (req.path.startsWith("/api")) {
       return next();
     }
     
-    // Serve index.html for all other routes
-    res.sendFile(path.resolve(distPath, "index.html"));
+    console.log(`Serving index.html for route: ${req.path}`);
+    res.sendFile(path.join(distPath, "index.html"));
   });
 }
