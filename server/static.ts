@@ -21,15 +21,13 @@
 
 
 
-
-
 import express, { type Express } from "express";
 import fs from "fs";
 import path from "path";
 
 export function serveStatic(app: Express) {
-  // Go up one level from dist to get to project root, then to public
-  const distPath = path.resolve(__dirname, "../public");
+  // The client files are built to dist/public, not just public
+  const distPath = path.resolve(__dirname, "public");
   
   console.log(`Looking for static files at: ${distPath}`);
   
