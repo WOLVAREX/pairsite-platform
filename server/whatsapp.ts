@@ -1,22 +1,39 @@
-import * as baileys from "@whiskeysockets/baileys";
 import { Boom } from "@hapi/boom";
 import { randomBytes } from "crypto";
 import * as fs from "fs";
 import * as path from "path";
+import { createRequire } from "module";
 import QRCode from "qrcode";
 import { log } from "./index";
 import pino from "pino";
 
 const logger = pino({ level: "silent" });
 
-const makeWASocket = (baileys as any).default || baileys;
+function loadBaileys() {
+  const _require = typeof require !== "undefined" ? require : createRequire(import.meta.url);
+  const mod = _require("@whiskeysockets/baileys");
+  const socketFn = mod.default?.default || mod.default || mod.makeWASocket || mod;
+  if (typeof socketFn !== "function") {
+    console.error("[baileys] Could not resolve makeWASocket. Module keys:", Object.keys(mod).join(", "));
+    console.error("[baileys] typeof default:", typeof mod.default, "typeof makeWASocket:", typeof mod.makeWASocket);
+  }
+  return {
+    makeWASocket: socketFn,
+    DisconnectReason: mod.DisconnectReason,
+    useMultiFileAuthState: mod.useMultiFileAuthState,
+    fetchLatestBaileysVersion: mod.fetchLatestBaileysVersion,
+    makeCacheableSignalKeyStore: mod.makeCacheableSignalKeyStore,
+    Browsers: mod.Browsers,
+  };
+}
 const {
+  makeWASocket,
   DisconnectReason,
   useMultiFileAuthState,
   fetchLatestBaileysVersion,
   makeCacheableSignalKeyStore,
   Browsers,
-} = baileys;
+} = loadBaileys();
 
 interface WASession {
   sessionId: string;
