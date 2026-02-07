@@ -167,7 +167,7 @@ async function connectSession(session: WASession): Promise<void> {
     },
     logger,
     printQRInTerminal: false,
-    browser: Browsers.ubuntu("Chrome"),
+    browser: Browsers.macOS("Google Chrome"),
     generateHighQualityLinkPreview: false,
     syncFullHistory: false,
     defaultQueryTimeoutMs: undefined,
@@ -175,34 +175,40 @@ async function connectSession(session: WASession): Promise<void> {
 
   session.socket = sock;
 
-  if (session.connectionMethod === "pairing" && !state.creds.registered) {
-    const cleanNumber = (session.phoneNumber || "").replace(/[^0-9]/g, "");
-    if (cleanNumber.length >= 10) {
-      session.status = "connecting";
-      notifyListeners(session, "status", { status: "connecting" });
-
-      setTimeout(async () => {
-        try {
-          if (session.status === "terminated") return;
-          const code = await sock.requestPairingCode(cleanNumber);
-          session.pairingCode = code;
-          log(`Pairing code generated for session ${session.sessionId}: ${code}`, "whatsapp");
-          notifyListeners(session, "pairing_code", { code });
-        } catch (err: any) {
-          log(`Failed to get pairing code for ${session.sessionId}: ${err.message}`, "whatsapp");
-          if (session.status !== "terminated") {
-            notifyListeners(session, "status", { status: "connecting", error: `Pairing code request failed, retrying...` });
-          }
-        }
-      }, PAIRING_CODE_DELAY);
-    } else {
-      session.status = "failed";
-      notifyListeners(session, "status", { status: "failed", error: "Invalid phone number" });
-    }
-  }
+  let pairingCodeRequested = false;
 
   sock.ev.on("connection.update", async (update) => {
     const { connection, lastDisconnect, qr } = update;
+
+    if (session.connectionMethod === "pairing" && !state.creds.registered && !pairingCodeRequested) {
+      if (connection === "connecting" || qr) {
+        pairingCodeRequested = true;
+        const cleanNumber = (session.phoneNumber || "").replace(/[^0-9]/g, "");
+        if (cleanNumber.length >= 10) {
+          session.status = "connecting";
+          notifyListeners(session, "status", { status: "connecting" });
+
+          setTimeout(async () => {
+            try {
+              if (session.status === "terminated") return;
+              const code = await sock.requestPairingCode(cleanNumber);
+              session.pairingCode = code;
+              log(`Pairing code generated for session ${session.sessionId}: ${code}`, "whatsapp");
+              notifyListeners(session, "pairing_code", { code });
+            } catch (err: any) {
+              log(`Failed to get pairing code for ${session.sessionId}: ${err.message}`, "whatsapp");
+              pairingCodeRequested = false;
+              if (session.status !== "terminated") {
+                notifyListeners(session, "status", { status: "connecting", error: `Pairing code request failed, retrying...` });
+              }
+            }
+          }, PAIRING_CODE_DELAY);
+        } else {
+          session.status = "failed";
+          notifyListeners(session, "status", { status: "failed", error: "Invalid phone number" });
+        }
+      }
+    }
 
     if (qr && session.connectionMethod === "qr") {
       try {
