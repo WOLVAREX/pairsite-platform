@@ -1,11 +1,4 @@
-import { 
-  default as makeWASocket,
-  DisconnectReason,
-  useMultiFileAuthState,
-  fetchLatestBaileysVersion,
-  makeCacheableSignalKeyStore,
-  Browsers,
-} from "@whiskeysockets/baileys";
+import * as baileys from "@whiskeysockets/baileys";
 import { Boom } from "@hapi/boom";
 import { randomBytes } from "crypto";
 import * as fs from "fs";
@@ -15,6 +8,15 @@ import { log } from "./index";
 import pino from "pino";
 
 const logger = pino({ level: "silent" });
+
+const makeWASocket = (baileys as any).default || baileys;
+const {
+  DisconnectReason,
+  useMultiFileAuthState,
+  fetchLatestBaileysVersion,
+  makeCacheableSignalKeyStore,
+  Browsers,
+} = baileys;
 
 interface WASession {
   sessionId: string;
