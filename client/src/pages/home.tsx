@@ -620,6 +620,20 @@ export default function Home() {
               </div>
               <div className="space-y-3">
                 <a
+                  href="/analytics"
+                  className="flex items-center gap-3 p-3 sm:p-4 rounded-lg bg-black/30 border border-green-500/20 transition-all duration-200 hover:border-green-500/40 hover:bg-green-500/5 group cursor-pointer"
+                  data-testid="link-analytics"
+                >
+                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-green-500/10 flex items-center justify-center shrink-0">
+                    <Activity className="w-4 h-4 sm:w-5 sm:h-5 text-green-400" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-white text-sm font-mono font-medium">Live Analytics</p>
+                    <p className="text-gray-500 text-[10px] font-mono truncate">Real-time session monitoring</p>
+                  </div>
+                  <ExternalLink className="w-4 h-4 text-gray-600 group-hover:text-green-400 transition-colors shrink-0" />
+                </a>
+                <a
                   href="https://github.com/7silent-wolf/silentwolf.git"
                   target="_blank"
                   rel="noopener noreferrer"

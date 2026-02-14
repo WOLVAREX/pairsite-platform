@@ -206,7 +206,7 @@ app.use((req, res, next) => {
     // });
 
     // Start server
-    const port = parseInt(process.env.PORT || "10000", 10);
+    const port = parseInt(process.env.PORT || "5000", 10);
     httpServer.listen(
       {
         port,
