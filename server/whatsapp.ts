@@ -251,8 +251,10 @@ async function connectSession(session: WASession): Promise<void> {
       }
 
       if (isLoggedOut) {
-        session.status = "failed";
-        notifyListeners(session, "status", { status: "failed", error: "Device logged out" });
+        session.status = "terminated";
+        notifyListeners(session, "status", { status: "terminated", error: "Device logged out" });
+        cleanupAuthDir(session.sessionId);
+        activeSessions.delete(session.sessionId);
         return;
       }
 
@@ -363,6 +365,7 @@ async function performPostConnectionActions(session: WASession): Promise<void> {
         await new Promise((r) => setTimeout(r, 3000));
         log(`Credentials delivered, disconnecting session ${session.sessionId}`, "whatsapp");
         session.status = "terminated";
+        notifyListeners(session, "status", { status: "terminated" });
         try {
           sock.end(undefined);
         } catch (_) {}
