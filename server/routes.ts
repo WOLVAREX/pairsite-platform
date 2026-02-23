@@ -10,7 +10,6 @@ import {
   removeSessionListener,
 } from "./whatsapp";
 import { log } from "./index";
-import { storage } from "./storage";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -43,20 +42,6 @@ export async function registerRoutes(
           currentListener = (event: string, data: any) => {
             if (ws.readyState === WebSocket.OPEN) {
               ws.send(JSON.stringify({ event, data, sessionId: currentSessionId }));
-            }
-
-            if (event === "status" && data.status) {
-              try {
-                if (data.status === "connected") {
-                  storage.markConnected(currentSessionId!);
-                } else if (data.status === "terminated") {
-                  storage.markTerminated(currentSessionId!);
-                } else if (data.status === "failed") {
-                  storage.markFailed(currentSessionId!);
-                }
-              } catch (err) {
-                log(`Analytics tracking error: ${err}`, "analytics");
-              }
             }
           };
           addSessionListener(msg.sessionId, currentListener);
@@ -94,17 +79,6 @@ export async function registerRoutes(
       log(`Creating ${method} session${phoneNumber ? ` for ${phoneNumber}` : ""}`, "whatsapp");
 
       const session = await createWhatsAppSession(method, phoneNumber);
-
-      try {
-        await storage.logConnection({
-          sessionId: session.sessionId,
-          connectionMethod: method,
-          status: "connecting",
-          createdAt: new Date(),
-        });
-      } catch (err) {
-        log(`Failed to log connection to database: ${err}`, "analytics");
-      }
 
       return res.json({
         sessionId: session.sessionId,
@@ -155,25 +129,9 @@ export async function registerRoutes(
         return res.status(404).json({ error: "Session not found" });
       }
 
-      try {
-        await storage.markTerminated(sessionId);
-      } catch (err) {
-        log(`Failed to update analytics on terminate: ${err}`, "analytics");
-      }
-
       return res.json({ success: true, message: "Session terminated and cleanup complete" });
     } catch (err: any) {
       return res.status(500).json({ error: err.message || "Internal server error" });
-    }
-  });
-
-  app.get("/api/analytics", async (_req, res) => {
-    try {
-      const data = await storage.getAnalytics();
-      return res.json(data);
-    } catch (err: any) {
-      log(`Analytics fetch error: ${err.message}`, "analytics");
-      return res.status(500).json({ error: "Failed to fetch analytics" });
     }
   });
 

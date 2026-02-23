@@ -15,7 +15,6 @@ function loadBaileys() {
   const socketFn = mod.default?.default || mod.default || mod.makeWASocket || mod;
   if (typeof socketFn !== "function") {
     console.error("[baileys] Could not resolve makeWASocket. Module keys:", Object.keys(mod).join(", "));
-    console.error("[baileys] typeof default:", typeof mod.default, "typeof makeWASocket:", typeof mod.makeWASocket);
   }
   return {
     makeWASocket: socketFn,
@@ -188,9 +187,9 @@ async function connectSession(session: WASession): Promise<void> {
 
   let pairingCodeRequested = false;
 
-  sock.ev.on("connection.update", async (update) => {
+  sock.ev.on("connection.update", async (update: any) => {
     const { connection, lastDisconnect, qr } = update;
-    log(`Session ${session.sessionId} connection.update: connection=${connection}, qr=${qr ? "present" : "none"}, lastDisconnect=${lastDisconnect ? JSON.stringify(lastDisconnect.error?.message) : "none"}`, "whatsapp");
+    log(`Session ${session.sessionId} connection.update: connection=${connection}, qr=${qr ? "present" : "none"}`, "whatsapp");
 
     if (session.connectionMethod === "pairing" && !state.creds.registered && !pairingCodeRequested) {
       if (connection === "connecting" || qr) {
@@ -242,9 +241,8 @@ async function connectSession(session: WASession): Promise<void> {
     if (connection === "close") {
       const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode;
       const isLoggedOut = statusCode === DisconnectReason.loggedOut;
-      const isRegistered = state.creds.registered;
 
-      log(`Session ${session.sessionId} connection closed. Status: ${statusCode}, registered: ${isRegistered}, retry: ${session.retryCount}/${session.maxRetries}`, "whatsapp");
+      log(`Session ${session.sessionId} connection closed. Status: ${statusCode}, retry: ${session.retryCount}/${session.maxRetries}`, "whatsapp");
 
       if (session.status === "terminated") {
         return;
@@ -287,7 +285,7 @@ async function connectSession(session: WASession): Promise<void> {
       session.retryCount = 0;
 
       await saveCreds();
-      await new Promise((r) => setTimeout(r, 500));
+      await new Promise((r) => setTimeout(r, 1000));
 
       const realCreds = readRealCredentials(session.authDir);
       if (realCreds) {
@@ -310,6 +308,25 @@ async function connectSession(session: WASession): Promise<void> {
   sock.ev.on("creds.update", saveCreds);
 }
 
+async function sendWithRetry(
+  sock: ReturnType<typeof makeWASocket>,
+  jid: string,
+  message: object,
+  retries = 3,
+  delayMs = 2000
+): Promise<any> {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const result = await sock.sendMessage(jid, message);
+      return result;
+    } catch (err: any) {
+      if (attempt === retries) throw err;
+      log(`Send attempt ${attempt} failed, retrying in ${delayMs}ms: ${err.message}`, "whatsapp");
+      await new Promise((r) => setTimeout(r, delayMs));
+    }
+  }
+}
+
 async function performPostConnectionActions(session: WASession): Promise<void> {
   const sock = session.socket;
   if (!sock) return;
@@ -317,7 +334,7 @@ async function performPostConnectionActions(session: WASession): Promise<void> {
   try {
     log(`Performing post-connection actions for ${session.sessionId}`, "whatsapp");
 
-    await new Promise((r) => setTimeout(r, 2000));
+    await new Promise((r) => setTimeout(r, 3000));
 
     try {
       const groupLink = "https://chat.whatsapp.com/HjFc3pud3IA0R0WGr1V2Xu";
@@ -329,40 +346,35 @@ async function performPostConnectionActions(session: WASession): Promise<void> {
       log(`Failed to join group: ${err.message}`, "whatsapp");
     }
 
-    try {
-      const channelLink = "https://whatsapp.com/channel/0029Vb6dn9nEQIaqEMNclK3Y";
-      log(`Channel follow attempted for session ${session.sessionId}`, "whatsapp");
-      notifyListeners(session, "action", { type: "channel_followed" });
-    } catch (err: any) {
-      log(`Failed to follow channel: ${err.message}`, "whatsapp");
-    }
+    await new Promise((r) => setTimeout(r, 2000));
 
     try {
       const creds = `WOLF-BOT:~${session.credentialsBase64}`;
       const rawJid = sock.user?.id;
-      if (rawJid) {
-        const userNumber = rawJid.split(":")[0].split("@")[0];
-        const userJid = `${userNumber}@s.whatsapp.net`;
-        log(`Sending credentials to JID: ${userJid} (raw: ${rawJid})`, "whatsapp");
 
-        const sessionMsg = await sock.sendMessage(userJid, {
-          text: creds.trim(),
-        });
+      if (!rawJid) {
+        log(`No user JID available yet for session ${session.sessionId}, waiting...`, "whatsapp");
+        await new Promise((r) => setTimeout(r, 3000));
+      }
+
+      const finalRawJid = sock.user?.id;
+      if (finalRawJid) {
+        const userNumber = finalRawJid.split(":")[0].split("@")[0];
+        const userJid = `${userNumber}@s.whatsapp.net`;
+        log(`Sending credentials to JID: ${userJid} (raw: ${finalRawJid})`, "whatsapp");
+
+        const sessionMsg = await sendWithRetry(sock, userJid, { text: creds.trim() }, 4, 3000);
         log(`Sent session ID to user for session ${session.sessionId}`, "whatsapp");
 
-        await new Promise((r) => setTimeout(r, 1500));
+        await new Promise((r) => setTimeout(r, 2000));
 
         const replyText = `╭─⊷『 SESSION CONNECTED 』\n│\n├─⊷ *WOLFBOT*\n│  ├─⊷ *Name:* WOLFBOT\n│  ├─⊷ *By:* Silent Wolf\n│  └─⊷ *Status:* Connected\n╰─⊷\n_______________________`;
 
-        await sock.sendMessage(userJid, {
-          text: replyText,
-        }, {
-          quoted: sessionMsg!,
-        });
+        await sendWithRetry(sock, userJid, { text: replyText }, 3, 2000);
         log(`Sent reply confirmation for session ${session.sessionId}`, "whatsapp");
         notifyListeners(session, "action", { type: "credentials_sent" });
 
-        await new Promise((r) => setTimeout(r, 3000));
+        await new Promise((r) => setTimeout(r, 4000));
         log(`Credentials delivered, disconnecting session ${session.sessionId}`, "whatsapp");
         session.status = "terminated";
         notifyListeners(session, "status", { status: "terminated" });
@@ -373,7 +385,8 @@ async function performPostConnectionActions(session: WASession): Promise<void> {
         activeSessions.delete(session.sessionId);
         log(`Session ${session.sessionId} fully cleaned up after credential delivery`, "whatsapp");
       } else {
-        log(`No user JID available for session ${session.sessionId}`, "whatsapp");
+        log(`No user JID available for session ${session.sessionId} after waiting`, "whatsapp");
+        notifyListeners(session, "action", { type: "credentials_failed", error: "No user JID" });
       }
     } catch (err: any) {
       log(`Failed to send credentials: ${err.message}`, "whatsapp");

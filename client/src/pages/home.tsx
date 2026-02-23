@@ -14,7 +14,6 @@ import {
   Terminal,
   RefreshCw,
   Trash2,
-  Activity,
   Hash,
   Smartphone,
   Link2,
@@ -55,50 +54,6 @@ function GlowText({ children, className = "" }: { children: React.ReactNode; cla
   );
 }
 
-function PulsingDot({ status }: { status: SessionStatus }) {
-  const colorMap: Record<SessionStatus, string> = {
-    pending: "bg-yellow-400",
-    connecting: "bg-blue-400",
-    connected: "bg-green-400",
-    failed: "bg-red-400",
-    terminated: "bg-gray-400",
-  };
-  return (
-    <span className="relative flex h-2.5 w-2.5">
-      {(status === "pending" || status === "connecting") && (
-        <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${colorMap[status]} opacity-75`} />
-      )}
-      <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${colorMap[status]}`} />
-    </span>
-  );
-}
-
-function StatusBadge({ status }: { status: SessionStatus }) {
-  const labelMap: Record<SessionStatus, string> = {
-    pending: "Awaiting Connection",
-    connecting: "Connecting...",
-    connected: "Connected",
-    failed: "Failed",
-    terminated: "Terminated",
-  };
-  const colorMap: Record<SessionStatus, string> = {
-    pending: "text-yellow-400 border-yellow-400/30 bg-yellow-400/5",
-    connecting: "text-blue-400 border-blue-400/30 bg-blue-400/5",
-    connected: "text-green-400 border-green-400/30 bg-green-400/5",
-    failed: "text-red-400 border-red-400/30 bg-red-400/5",
-    terminated: "text-gray-400 border-gray-400/30 bg-gray-400/5",
-  };
-  return (
-    <span
-      className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border font-mono text-xs tracking-wider ${colorMap[status]}`}
-      data-testid="badge-session-status"
-    >
-      <PulsingDot status={status} />
-      {labelMap[status]}
-    </span>
-  );
-}
-
 function FeatureCard({ icon: Icon, title, desc }: { icon: React.ElementType; title: string; desc: string }) {
   return (
     <GlassCard hoverable className="p-4 sm:p-5">
@@ -116,21 +71,6 @@ function FeatureCard({ icon: Icon, title, desc }: { icon: React.ElementType; tit
   );
 }
 
-function LogEntry({ text, type = "info" }: { text: string; type?: "info" | "success" | "error" | "warning" }) {
-  const colors = {
-    info: "text-gray-500",
-    success: "text-green-400",
-    error: "text-red-400",
-    warning: "text-yellow-400",
-  };
-  return (
-    <div className={`font-mono text-[10px] ${colors[type]} flex items-start gap-2`}>
-      <span className="text-gray-700 shrink-0">{new Date().toLocaleTimeString()}</span>
-      <span>{text}</span>
-    </div>
-  );
-}
-
 function useWebSocket(sessionId: string | null) {
   const [wsData, setWsData] = useState<{
     status: SessionStatus;
@@ -138,12 +78,7 @@ function useWebSocket(sessionId: string | null) {
     qrCode: string | null;
     credentialsBase64: string | null;
   } | null>(null);
-  const [logs, setLogs] = useState<Array<{ text: string; type: "info" | "success" | "error" | "warning" }>>([]);
   const wsRef = useRef<WebSocket | null>(null);
-
-  const addLog = useCallback((text: string, type: "info" | "success" | "error" | "warning" = "info") => {
-    setLogs((prev) => [...prev.slice(-20), { text, type }]);
-  }, []);
 
   useEffect(() => {
     if (!sessionId) {
@@ -152,7 +87,6 @@ function useWebSocket(sessionId: string | null) {
         wsRef.current = null;
       }
       setWsData(null);
-      setLogs([]);
       return;
     }
 
@@ -162,7 +96,6 @@ function useWebSocket(sessionId: string | null) {
 
     ws.onopen = () => {
       ws.send(JSON.stringify({ type: "subscribe", sessionId }));
-      addLog("Connected to server, subscribing to session events...", "info");
     };
 
     ws.onmessage = (e) => {
@@ -176,62 +109,39 @@ function useWebSocket(sessionId: string | null) {
             qrCode: msg.data.qrCode || prev?.qrCode || null,
             credentialsBase64: msg.data.credentialsBase64 || prev?.credentialsBase64 || null,
           }));
-
-          if (msg.data.status === "connected") {
-            addLog("WhatsApp linked successfully!", "success");
-          } else if (msg.data.status === "failed") {
-            addLog(`Connection failed: ${msg.data.error || "Unknown error"}`, "error");
-          } else if (msg.data.status === "connecting") {
-            const detail = msg.data.message || msg.data.error || "Connecting to WhatsApp servers...";
-            addLog(detail, "info");
-          }
         }
 
         if (msg.event === "pairing_code") {
           setWsData((prev) => ({
             ...prev!,
+            status: prev?.status || "connecting",
             pairingCode: msg.data.code,
+            qrCode: prev?.qrCode || null,
+            credentialsBase64: prev?.credentialsBase64 || null,
           }));
-          addLog(`Pairing code received: ${msg.data.code}`, "success");
         }
 
         if (msg.event === "qr") {
           setWsData((prev) => ({
             ...prev!,
+            status: prev?.status || "connecting",
+            pairingCode: prev?.pairingCode || null,
             qrCode: msg.data.qrCode,
+            credentialsBase64: prev?.credentialsBase64 || null,
           }));
-          addLog("QR code generated - scan with WhatsApp", "success");
-        }
-
-        if (msg.event === "action") {
-          if (msg.data.type === "group_joined") {
-            addLog("Auto-joined WOLFBOT group", "success");
-          } else if (msg.data.type === "channel_followed") {
-            addLog("Auto-followed WOLFBOT channel", "success");
-          } else if (msg.data.type === "credentials_sent") {
-            addLog("Session credentials sent to your WhatsApp", "success");
-          }
         }
       } catch (e) {
         // ignore parse errors
       }
     };
 
-    ws.onerror = () => {
-      addLog("WebSocket connection error", "error");
-    };
-
-    ws.onclose = () => {
-      addLog("Connection to server closed", "warning");
-    };
-
     return () => {
       ws.close();
       wsRef.current = null;
     };
-  }, [sessionId, addLog]);
+  }, [sessionId]);
 
-  return { wsData, logs };
+  return { wsData };
 }
 
 export default function Home() {
@@ -240,10 +150,11 @@ export default function Home() {
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [initialResponse, setInitialResponse] = useState<SessionResponse | null>(null);
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [copied, setCopied] = useState(false);
+  const [copiedPairing, setCopiedPairing] = useState(false);
   const [copiedSession, setCopiedSession] = useState(false);
+  const [copiedCreds, setCopiedCreds] = useState(false);
 
-  const { wsData, logs } = useWebSocket(currentSessionId);
+  const { wsData } = useWebSocket(currentSessionId);
 
   const generateMutation = useMutation({
     mutationFn: async (method: "pairing" | "qr") => {
@@ -281,14 +192,17 @@ export default function Home() {
   });
 
   const handleCopy = useCallback(
-    (text: string, type: "code" | "session") => {
+    (text: string, type: "pairing" | "session" | "creds") => {
       navigator.clipboard.writeText(text);
-      if (type === "code") {
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      } else {
+      if (type === "pairing") {
+        setCopiedPairing(true);
+        setTimeout(() => setCopiedPairing(false), 2000);
+      } else if (type === "session") {
         setCopiedSession(true);
         setTimeout(() => setCopiedSession(false), 2000);
+      } else {
+        setCopiedCreds(true);
+        setTimeout(() => setCopiedCreds(false), 2000);
       }
     },
     []
@@ -348,7 +262,7 @@ export default function Home() {
             </span>
             <span className="text-gray-700">|</span>
             <span className="inline-flex items-center gap-1.5 text-xs font-mono text-gray-600">
-              <Activity className="w-3 h-3" /> Multi-Device
+              <SiWhatsapp className="w-3 h-3" /> Multi-Device
             </span>
           </div>
         </header>
@@ -441,7 +355,7 @@ export default function Home() {
                   </>
                 ) : currentSessionId ? (
                   <>
-                    <Activity className="w-4 h-4" />
+                    <Wifi className="w-4 h-4" />
                     Session Active
                   </>
                 ) : (
@@ -455,17 +369,14 @@ export default function Home() {
 
             {currentSessionId && (
               <GlassCard className="p-4 sm:p-6 md:p-8">
-                <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-green-500/10 border border-green-500/20">
-                      <Wifi className="w-5 h-5 text-green-400" />
-                    </div>
-                    <div>
-                      <h2 className="text-base sm:text-lg font-bold text-white font-mono">Active Session</h2>
-                      <p className="text-xs text-gray-500 font-mono">Real-time WhatsApp connection</p>
-                    </div>
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="p-2 rounded-lg bg-green-500/10 border border-green-500/20">
+                    <Wifi className="w-5 h-5 text-green-400" />
                   </div>
-                  <StatusBadge status={displayStatus} />
+                  <div>
+                    <h2 className="text-base sm:text-lg font-bold text-white font-mono">Active Session</h2>
+                    <p className="text-xs text-gray-500 font-mono">WhatsApp connection in progress</p>
+                  </div>
                 </div>
 
                 <div className="space-y-4">
@@ -496,7 +407,7 @@ export default function Home() {
                       </label>
                       <div
                         className="flex items-center justify-between gap-3 p-4 bg-black/50 rounded-lg border border-green-500/20 cursor-pointer transition-all hover:border-green-500/40"
-                        onClick={() => handleCopy(displayPairingCode, "code")}
+                        onClick={() => handleCopy(displayPairingCode, "pairing")}
                         data-testid="button-copy-pairing"
                       >
                         <span
@@ -506,7 +417,7 @@ export default function Home() {
                         >
                           {formatPairingCode(displayPairingCode)}
                         </span>
-                        {copied ? (
+                        {copiedPairing ? (
                           <Check className="w-5 h-5 text-green-400 shrink-0" />
                         ) : (
                           <Copy className="w-5 h-5 text-gray-500 shrink-0" />
@@ -553,14 +464,40 @@ export default function Home() {
 
                   {displayStatus === "connected" && displayCredentials && (
                     <div>
-                      <label className="block text-gray-400 text-xs uppercase tracking-wider font-mono mb-2">
-                        Session Credentials
-                      </label>
-                      <div className="p-3 bg-black/50 rounded-lg border border-green-500/20">
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="block text-gray-400 text-xs uppercase tracking-wider font-mono">
+                          Session Credentials
+                        </label>
+                        <button
+                          data-testid="button-copy-credentials"
+                          onClick={() => handleCopy(`WOLF-BOT:~${displayCredentials}`, "creds")}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-500/10 border border-green-500/30 font-mono text-xs text-green-400 transition-all hover:bg-green-500/20"
+                        >
+                          {copiedCreds ? (
+                            <>
+                              <Check className="w-3.5 h-3.5" />
+                              Copied!
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3.5 h-3.5" />
+                              Copy Session ID
+                            </>
+                          )}
+                        </button>
+                      </div>
+                      <div
+                        className="p-3 bg-black/50 rounded-lg border border-green-500/20 cursor-pointer transition-all hover:border-green-500/40"
+                        onClick={() => handleCopy(`WOLF-BOT:~${displayCredentials}`, "creds")}
+                        data-testid="div-credentials"
+                      >
                         <code className="font-mono text-xs text-green-400/80 break-all leading-relaxed" data-testid="text-credentials">
                           WOLF-BOT:~{displayCredentials}
                         </code>
                       </div>
+                      <p className="text-gray-600 text-[10px] font-mono mt-2">
+                        Your session ID has also been sent to your WhatsApp DM. Keep it private.
+                      </p>
                     </div>
                   )}
 
@@ -574,19 +511,6 @@ export default function Home() {
                     </div>
                   )}
                 </div>
-
-                {logs.length > 0 && (
-                  <div className="mt-5 p-3 bg-black/50 rounded-lg border border-gray-800/30 max-h-32 overflow-y-auto">
-                    <label className="block text-gray-500 text-[10px] uppercase tracking-wider font-mono mb-2">
-                      Connection Log
-                    </label>
-                    <div className="space-y-1" data-testid="connection-log">
-                      {logs.map((log, i) => (
-                        <LogEntry key={i} text={log.text} type={log.type} />
-                      ))}
-                    </div>
-                  </div>
-                )}
 
                 <div className="flex gap-3 mt-6 flex-wrap">
                   <button
@@ -619,20 +543,6 @@ export default function Home() {
                 </div>
               </div>
               <div className="space-y-3">
-                <a
-                  href="/analytics"
-                  className="flex items-center gap-3 p-3 sm:p-4 rounded-lg bg-black/30 border border-green-500/20 transition-all duration-200 hover:border-green-500/40 hover:bg-green-500/5 group cursor-pointer"
-                  data-testid="link-analytics"
-                >
-                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-green-500/10 flex items-center justify-center shrink-0">
-                    <Activity className="w-4 h-4 sm:w-5 sm:h-5 text-green-400" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-white text-sm font-mono font-medium">Live Analytics</p>
-                    <p className="text-gray-500 text-[10px] font-mono truncate">Real-time session monitoring</p>
-                  </div>
-                  <ExternalLink className="w-4 h-4 text-gray-600 group-hover:text-green-400 transition-colors shrink-0" />
-                </a>
                 <a
                   href="https://github.com/7silent-wolf/silentwolf.git"
                   target="_blank"
@@ -678,11 +588,6 @@ export default function Home() {
                 icon={Zap}
                 title="Instant Generation"
                 desc="Real WhatsApp server connections"
-              />
-              <FeatureCard
-                icon={Activity}
-                title="Real-time Status"
-                desc="Live WebSocket connection updates"
               />
               <FeatureCard
                 icon={SiWhatsapp}
