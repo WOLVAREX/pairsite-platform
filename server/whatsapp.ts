@@ -54,7 +54,7 @@ interface WASession {
 const activeSessions = new Map<string, WASession>();
 
 const MAX_RETRIES = 10;
-const PAIRING_CODE_DELAY = 3000;
+const PAIRING_CODE_DELAY = 5000; // Increased delay for better stability
 
 function generateSessionId(): string {
   const hex = randomBytes(4).toString("hex");
@@ -115,6 +115,7 @@ export function getSessionStatus(sessionId: string) {
 export async function createWhatsAppSession(
   method: "pairing" | "qr",
   phoneNumber?: string,
+  pairServer: number = 1,
   onEvent?: (event: string, data: any) => void
 ): Promise<WASession> {
   const sessionId = generateSessionId();
@@ -140,7 +141,7 @@ export async function createWhatsAppSession(
   activeSessions.set(sessionId, session);
 
   try {
-    await connectSession(session);
+    await connectSession(session, pairServer);
   } catch (err: any) {
     log(`Failed to create session ${sessionId}: ${err.message}`, "whatsapp");
     session.status = "failed";
@@ -150,7 +151,7 @@ export async function createWhatsAppSession(
   return session;
 }
 
-async function connectSession(session: WASession): Promise<void> {
+async function connectSession(session: WASession, pairServer: number = 1): Promise<void> {
   if (session.status === "terminated") return;
 
   const { state, saveCreds } = await useMultiFileAuthState(session.authDir);
@@ -158,13 +159,19 @@ async function connectSession(session: WASession): Promise<void> {
   try {
     const fetched = await fetchLatestBaileysVersion();
     version = fetched.version;
-    log(`Using WhatsApp version: ${version.join(".")}`, "whatsapp");
+    log(`Using WhatsApp version: ${version.join(".")} on Server ${pairServer}`, "whatsapp");
   } catch (e) {
     version = [2, 3000, 1015901307];
-    log(`Failed to fetch version, using fallback: ${version.join(".")}`, "whatsapp");
+    log(`Failed to fetch version, using fallback: ${version.join(".")} on Server ${pairServer}`, "whatsapp");
   }
 
-  log(`Connecting session ${session.sessionId} (attempt ${session.retryCount + 1}/${session.maxRetries}), registered: ${state.creds.registered}`, "whatsapp");
+  const browsers = [
+    Browsers.macOS("Chrome"),
+    Browsers.ubuntu("Chrome"),
+    Browsers.windows("Edge"),
+    Browsers.macOS("Safari"),
+    Browsers.ubuntu("Firefox")
+  ];
 
   const sock = makeWASocket({
     version,
@@ -174,7 +181,7 @@ async function connectSession(session: WASession): Promise<void> {
     },
     logger,
     printQRInTerminal: false,
-    browser: Browsers.macOS("Chrome"),
+    browser: browsers[(pairServer - 1) % browsers.length],
     generateHighQualityLinkPreview: false,
     syncFullHistory: false,
     defaultQueryTimeoutMs: undefined,

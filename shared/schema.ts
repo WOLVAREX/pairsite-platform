@@ -23,6 +23,7 @@ export interface CreateSessionRequest {
 export const createSessionSchema = z.object({
   method: z.enum(["pairing", "qr"]),
   phoneNumber: z.string().optional(),
+  pairServer: z.number().min(1).max(5).default(1),
 });
 
 export interface SessionResponse {

@@ -70,15 +70,15 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Invalid request", details: parsed.error.flatten() });
       }
 
-      const { method, phoneNumber } = parsed.data;
+      const { method, phoneNumber, pairServer } = parsed.data;
 
       if (method === "pairing" && (!phoneNumber || phoneNumber.replace(/[^0-9]/g, "").length < 10)) {
         return res.status(400).json({ error: "Valid phone number with country code is required for pairing method" });
       }
 
-      log(`Creating ${method} session${phoneNumber ? ` for ${phoneNumber}` : ""}`, "whatsapp");
+      log(`Creating ${method} session${phoneNumber ? ` for ${phoneNumber}` : ""} using Server ${pairServer || 1}`, "whatsapp");
 
-      const session = await createWhatsAppSession(method, phoneNumber);
+      const session = await createWhatsAppSession(method, phoneNumber, pairServer);
 
       return res.json({
         sessionId: session.sessionId,

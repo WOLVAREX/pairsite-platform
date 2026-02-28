@@ -150,6 +150,7 @@ export default function Home() {
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [initialResponse, setInitialResponse] = useState<SessionResponse | null>(null);
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [pairServer, setPairServer] = useState(1);
   const [copiedPairing, setCopiedPairing] = useState(false);
   const [copiedSession, setCopiedSession] = useState(false);
   const [copiedCreds, setCopiedCreds] = useState(false);
@@ -161,6 +162,7 @@ export default function Home() {
       const res = await apiRequest("POST", "/api/generate-session", {
         method,
         phoneNumber: method === "pairing" ? phoneNumber : undefined,
+        pairServer,
       });
       return (await res.json()) as SessionResponse;
     },
@@ -309,6 +311,27 @@ export default function Home() {
 
               {activeMethod === "pairing" && (
                 <div className="space-y-4">
+                  <div>
+                    <label className="block text-gray-400 text-xs uppercase tracking-wider font-mono mb-2">
+                      Select Pair Server
+                    </label>
+                    <div className="grid grid-cols-5 gap-2 mb-4">
+                      {[1, 2, 3, 4, 5].map((num) => (
+                        <button
+                          key={num}
+                          data-testid={`button-server-${num}`}
+                          onClick={() => setPairServer(num)}
+                          className={`py-2 rounded border font-mono text-xs transition-all ${
+                            pairServer === num
+                              ? "bg-green-500/20 text-green-400 border-green-500/50"
+                              : "bg-black/40 text-gray-500 border-gray-800 hover:border-gray-700"
+                          }`}
+                        >
+                          Server {num}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                   <div>
                     <label className="block text-gray-400 text-xs uppercase tracking-wider font-mono mb-2">
                       Phone Number (with country code)
