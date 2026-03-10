@@ -10,6 +10,7 @@ import {
   removeSessionListener,
   getAnalytics,
 } from "./whatsapp";
+import { storage } from "./storage";
 import { log } from "./index";
 
 export async function registerRoutes(
@@ -118,10 +119,19 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/analytics", (_req, res) => {
+  app.get("/api/analytics", async (_req, res) => {
     try {
-      const data = getAnalytics();
-      return res.json(data);
+      const memory = getAnalytics();
+      const dbData = await storage.getDbAnalytics();
+
+      return res.json({
+        connected: memory.connected,
+        active: memory.active,
+        inactive: dbData ? dbData.inactive : memory.inactive,
+        totalThisMonth: dbData ? dbData.totalThisMonth : memory.totalThisMonth,
+        sessions: memory.sessions,
+        persistedData: dbData !== null,
+      });
     } catch (err: any) {
       return res.status(500).json({ error: err.message || "Internal server error" });
     }

@@ -15,6 +15,8 @@ import {
   Loader2,
   XCircle,
   AlertCircle,
+  Database,
+  HardDrive,
 } from "lucide-react";
 
 interface AnalyticsData {
@@ -22,6 +24,7 @@ interface AnalyticsData {
   active: number;
   inactive: number;
   totalThisMonth: number;
+  persistedData: boolean;
   sessions: {
     sessionId: string;
     status: "pending" | "connecting" | "connected" | "failed" | "terminated";
@@ -239,8 +242,25 @@ export default function Analytics() {
           </div>
 
           <div className="flex items-center gap-3">
+            {!isLoading && data && (
+              <span
+                className={`hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-mono border ${
+                  data.persistedData
+                    ? "bg-green-500/10 border-green-500/20 text-green-400"
+                    : "bg-gray-500/10 border-gray-500/20 text-gray-500"
+                }`}
+                data-testid="status-storage-mode"
+              >
+                {data.persistedData ? (
+                  <Database className="w-3 h-3" />
+                ) : (
+                  <HardDrive className="w-3 h-3" />
+                )}
+                {data.persistedData ? "PostgreSQL" : "Memory only"}
+              </span>
+            )}
             {lastUpdated && (
-              <span className="hidden sm:block text-gray-600 text-[10px] font-mono">
+              <span className="hidden lg:block text-gray-600 text-[10px] font-mono">
                 Updated {lastUpdated}
               </span>
             )}
@@ -407,11 +427,17 @@ export default function Analytics() {
             <AlertCircle className="w-4 h-4 text-yellow-500/70" />
             <span className="text-xs font-mono text-yellow-500/70 uppercase tracking-wider">Note</span>
           </div>
-          <p className="text-gray-500 text-xs font-mono leading-relaxed">
-            Analytics are tracked in server memory and reset when the server restarts. The "Inactive" count
-            includes all terminated and failed sessions since the last restart. "Total This Month" counts all
-            sessions created in the current calendar month since the last restart.
-          </p>
+          {data?.persistedData ? (
+            <p className="text-gray-500 text-xs font-mono leading-relaxed">
+              Analytics are backed by PostgreSQL — "Inactive" and "Total This Month" counts persist through
+              server restarts. Live session list reflects currently active in-memory sessions only.
+            </p>
+          ) : (
+            <p className="text-gray-500 text-xs font-mono leading-relaxed">
+              Analytics are tracked in server memory and reset when the server restarts. Set up a
+              DATABASE_URL environment variable to enable persistent PostgreSQL tracking.
+            </p>
+          )}
         </GlassCard>
 
         <footer className="mt-8 text-center border-t border-gray-800/50 pt-6 pb-4">

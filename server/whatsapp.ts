@@ -5,6 +5,7 @@ import * as path from "path";
 import { createRequire } from "module";
 import QRCode from "qrcode";
 import { log } from "./index";
+import { storage } from "./storage";
 import pino from "pino";
 
 const logger = pino({ level: "warn" });
@@ -77,6 +78,20 @@ function recordSession(session: WASession): void {
       linkedAt: session.linkedAt,
     });
   }
+
+  storage.logSession({
+    sessionId: session.sessionId,
+    status: session.status,
+    connectionMethod: session.connectionMethod,
+    createdAt: new Date(session.createdAt),
+    linkedAt: session.linkedAt ? new Date(session.linkedAt) : null,
+    terminatedAt:
+      session.status === "terminated" || session.status === "failed"
+        ? new Date()
+        : null,
+  }).catch((err) => {
+    log(`[storage] logSession error: ${err.message}`, "whatsapp");
+  });
 }
 
 export function getAnalytics() {

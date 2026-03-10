@@ -1,4 +1,20 @@
 import { z } from "zod";
+import { pgTable, serial, varchar, timestamp } from "drizzle-orm/pg-core";
+import { createInsertSchema } from "drizzle-zod";
+
+export const sessionsLog = pgTable("sessions_log", {
+  id: serial("id").primaryKey(),
+  sessionId: varchar("session_id", { length: 50 }).notNull(),
+  status: varchar("status", { length: 20 }).notNull(),
+  connectionMethod: varchar("connection_method", { length: 10 }).notNull(),
+  createdAt: timestamp("created_at").notNull(),
+  linkedAt: timestamp("linked_at"),
+  terminatedAt: timestamp("terminated_at"),
+});
+
+export const insertSessionLogSchema = createInsertSchema(sessionsLog).omit({ id: true });
+export type InsertSessionLog = typeof insertSessionLogSchema._type;
+export type SessionLog = typeof sessionsLog.$inferSelect;
 
 export const sessionStatusEnum = ["pending", "connecting", "connected", "failed", "terminated"] as const;
 export type SessionStatus = typeof sessionStatusEnum[number];
