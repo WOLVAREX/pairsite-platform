@@ -22,7 +22,9 @@ import {
   AlertCircle,
   Loader2,
   Bot,
+  BarChart3,
 } from "lucide-react";
+import { Link } from "wouter";
 import { SiWhatsapp, SiGithub } from "react-icons/si";
 
 function GlassCard({
@@ -566,6 +568,21 @@ export default function Home() {
                 </div>
               </div>
               <div className="space-y-3">
+                <Link href="/analytics">
+                  <div
+                    className="flex items-center gap-3 p-3 sm:p-4 rounded-lg bg-black/30 border border-gray-800/30 transition-all duration-200 hover:border-green-500/30 hover:bg-green-500/5 group cursor-pointer"
+                    data-testid="link-live-analytics"
+                  >
+                    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-green-500/10 flex items-center justify-center shrink-0">
+                      <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 text-green-400" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-white text-sm font-mono font-medium">Live Analytics</p>
+                      <p className="text-gray-500 text-[10px] font-mono truncate">Real-time session dashboard</p>
+                    </div>
+                    <ArrowUpRight className="w-4 h-4 text-gray-600 group-hover:text-green-400 transition-colors shrink-0" />
+                  </div>
+                </Link>
                 <a
                   href="https://github.com/7silent-wolf/silentwolf.git"
                   target="_blank"

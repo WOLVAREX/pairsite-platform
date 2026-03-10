@@ -8,6 +8,7 @@ import {
   terminateSession,
   addSessionListener,
   removeSessionListener,
+  getAnalytics,
 } from "./whatsapp";
 import { log } from "./index";
 
@@ -112,6 +113,15 @@ export async function registerRoutes(
         credentialsBase64: status.credentialsBase64,
         message: getStatusMessage(status.status),
       });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message || "Internal server error" });
+    }
+  });
+
+  app.get("/api/analytics", (_req, res) => {
+    try {
+      const data = getAnalytics();
+      return res.json(data);
     } catch (err: any) {
       return res.status(500).json({ error: err.message || "Internal server error" });
     }

@@ -53,6 +53,62 @@ interface WASession {
 
 const activeSessions = new Map<string, WASession>();
 
+interface SessionRecord {
+  sessionId: string;
+  status: WASession["status"];
+  connectionMethod: "pairing" | "qr";
+  createdAt: string;
+  linkedAt: string | null;
+}
+
+const sessionHistory: SessionRecord[] = [];
+
+function recordSession(session: WASession): void {
+  const existing = sessionHistory.find((r) => r.sessionId === session.sessionId);
+  if (existing) {
+    existing.status = session.status;
+    existing.linkedAt = session.linkedAt;
+  } else {
+    sessionHistory.push({
+      sessionId: session.sessionId,
+      status: session.status,
+      connectionMethod: session.connectionMethod,
+      createdAt: session.createdAt,
+      linkedAt: session.linkedAt,
+    });
+  }
+}
+
+export function getAnalytics() {
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+
+  const allSessions = Array.from(activeSessions.values()).map((s) => ({
+    sessionId: s.sessionId,
+    status: s.status,
+    connectionMethod: s.connectionMethod,
+    createdAt: s.createdAt,
+    linkedAt: s.linkedAt,
+  }));
+
+  const historyThisMonth = sessionHistory.filter((r) => r.createdAt >= startOfMonth);
+
+  const connected = allSessions.filter((s) => s.status === "connected").length;
+  const active = allSessions.filter((s) => s.status === "pending" || s.status === "connecting").length;
+  const inactive = sessionHistory.filter(
+    (r) => r.status === "terminated" || r.status === "failed"
+  ).length;
+  const totalThisMonth = historyThisMonth.length;
+
+  return {
+    connected,
+    active,
+    inactive,
+    totalThisMonth,
+    sessions: allSessions,
+  };
+}
+
 const MAX_RETRIES = 10;
 const PAIRING_CODE_DELAY = 5000; // Increased delay for better stability
 
@@ -139,12 +195,14 @@ export async function createWhatsAppSession(
   };
 
   activeSessions.set(sessionId, session);
+  recordSession(session);
 
   try {
     await connectSession(session, pairServer);
   } catch (err: any) {
     log(`Failed to create session ${sessionId}: ${err.message}`, "whatsapp");
     session.status = "failed";
+    recordSession(session);
     notifyListeners(session, "status", { status: "failed", error: err.message });
   }
 
@@ -290,6 +348,7 @@ async function connectSession(session: WASession, pairServer: number = 1): Promi
       session.status = "connected";
       session.linkedAt = new Date().toISOString();
       session.retryCount = 0;
+      recordSession(session);
 
       await saveCreds();
       await new Promise((r) => setTimeout(r, 1000));
@@ -409,6 +468,7 @@ export async function terminateSession(sessionId: string): Promise<boolean> {
   if (!session) return false;
 
   session.status = "terminated";
+  recordSession(session);
 
   try {
     if (session.socket) {
