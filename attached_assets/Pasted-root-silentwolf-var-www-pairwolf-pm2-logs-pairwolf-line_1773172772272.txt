@@ -1,0 +1,83 @@
+root@silentwolf:/var/www/pairwolf# pm2 logs pairwolf --lines 30
+[TAILING] Tailing last 30 lines for [pairwolf] process (change the value with --lines option)
+/root/.pm2/logs/pairwolf-error.log last 30 lines:
+7|pairwolf |   dataType: undefined,
+7|pairwolf |   constraint: undefined,
+7|pairwolf |   file: 'aclchk.c',
+7|pairwolf |   line: '2843',
+7|pairwolf |   routine: 'aclcheck_error'
+7|pairwolf | }
+7|pairwolf | [storage] Failed to get analytics: error: permission denied for table sessions_log
+7|pairwolf |     at /var/www/pairwolf/dist/index.cjs:60:13326
+7|pairwolf |     at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+7|pairwolf |     at async /var/www/pairwolf/dist/index.cjs:66:37150
+7|pairwolf |     at async Cf.getDbAnalytics (/var/www/pairwolf/dist/index.cjs:66:40664)
+7|pairwolf |     at async /var/www/pairwolf/dist/index.cjs:73:3131 {
+7|pairwolf |   length: 100,
+7|pairwolf |   severity: 'ERROR',
+7|pairwolf |   code: '42501',
+7|pairwolf |   detail: undefined,
+7|pairwolf |   hint: undefined,
+7|pairwolf |   position: undefined,
+7|pairwolf |   internalPosition: undefined,
+7|pairwolf |   internalQuery: undefined,
+7|pairwolf |   where: undefined,
+7|pairwolf |   schema: undefined,
+7|pairwolf |   table: undefined,
+7|pairwolf |   column: undefined,
+7|pairwolf |   dataType: undefined,
+7|pairwolf |   constraint: undefined,
+7|pairwolf |   file: 'aclchk.c',
+7|pairwolf |   line: '2843',
+7|pairwolf |   routine: 'aclcheck_error'
+7|pairwolf | }
+
+/root/.pm2/logs/pairwolf-out.log last 30 lines:
+7|pairwolf | 8:39:04 PM [whatsapp] Sent reply confirmation for session wolf_ceefb1cd
+7|pairwolf | 8:39:08 PM [whatsapp] Credentials delivered, disconnecting session wolf_ceefb1cd
+7|pairwolf | 8:39:08 PM [whatsapp] Session wolf_ceefb1cd connection.update: connection=close, qr=none
+7|pairwolf | 8:39:08 PM [whatsapp] Session wolf_ceefb1cd connection closed. Status: undefined, retry: 0/10
+7|pairwolf | 8:39:08 PM [whatsapp] Session wolf_ceefb1cd fully cleaned up after credential delivery
+7|pairwolf | Looking for static files at: /var/www/pairwolf/dist/public
+7|pairwolf | 8:39:15 PM [express] serving on port 3002
+7|pairwolf | 8:46:36 PM [express] GET /api/analytics 200 in 515ms :: {"connected":0,"active":0,"inactive":0,"totalThisMonth":0,"session
+s":[]}
+7|pairwolf | 8:46:39 PM [express] GET /api/analytics 304 in 9ms :: {"connected":0,"active":0,"inactive":0,"totalThisMonth":0,"sessions"
+:[]}
+7|pairwolf | Looking for static files at: /var/www/pairwolf/dist/public
+7|pairwolf | 8:48:12 PM [express] serving on port 3002
+7|pairwolf | 8:48:26 PM [express] GET /api/analytics 200 in 14ms :: {"connected":0,"active":0,"inactive":0,"totalThisMonth":0,"sessions
+":[],"persistedData":false}
+7|pairwolf | 8:48:29 PM [express] GET /api/analytics 304 in 12ms :: {"connected":0,"active":0,"inactive":0,"totalThisMonth":0,"sessions
+":[],"persistedData":false}
+7|pairwolf | 8:48:32 PM [express] GET /api/analytics 304 in 6ms :: {"connected":0,"active":0,"inactive":0,"totalThisMonth":0,"sessions"
+:[],"persistedData":false}
+7|pairwolf | 8:48:35 PM [express] GET /api/analytics 304 in 2ms :: {"connected":0,"active":0,"inactive":0,"totalThisMonth":0,"sessions"
+:[],"persistedData":false}
+7|pairwolf | 8:48:39 PM [express] GET /api/analytics 304 in 2ms :: {"connected":0,"active":0,"inactive":0,"totalThisMonth":0,"sessions"
+:[],"persistedData":false}
+7|pairwolf | 8:48:42 PM [express] GET /api/analytics 304 in 20ms :: {"connected":0,"active":0,"inactive":0,"totalThisMonth":0,"sessions
+":[],"persistedData":false}
+7|pairwolf | Looking for static files at: /var/www/pairwolf/dist/public
+7|pairwolf | 8:52:52 PM [express] serving on port 3002
+7|pairwolf | 8:53:10 PM [express] GET /api/analytics 200 in 50ms :: {"connected":0,"active":0,"inactive":0,"totalThisMonth":0,"sessions
+":[],"persistedData":false}
+7|pairwolf | 8:53:13 PM [express] GET /api/analytics 304 in 4ms :: {"connected":0,"active":0,"inactive":0,"totalThisMonth":0,"sessions"
+:[],"persistedData":false}
+7|pairwolf | 8:53:17 PM [express] GET /api/analytics 304 in 1ms :: {"connected":0,"active":0,"inactive":0,"totalThisMonth":0,"sessions"
+:[],"persistedData":false}
+7|pairwolf | 8:53:20 PM [express] GET /api/analytics 304 in 4ms :: {"connected":0,"active":0,"inactive":0,"totalThisMonth":0,"sessions"
+:[],"persistedData":false}
+7|pairwolf | 8:53:41 PM [express] GET /api/analytics 304 in 206ms :: {"connected":0,"active":0,"inactive":0,"totalThisMonth":0,"session
+s":[],"persistedData":false}
+7|pairwolf | 8:53:43 PM [express] GET /api/analytics 304 in 1ms :: {"connected":0,"active":0,"inactive":0,"totalThisMonth":0,"sessions"
+:[],"persistedData":false}
+7|pairwolf | 8:53:47 PM [express] GET /api/analytics 304 in 2ms :: {"connected":0,"active":0,"inactive":0,"totalThisMonth":0,"sessions"
+:[],"persistedData":false}
+7|pairwolf | Looking for static files at: /var/www/pairwolf/dist/public
+7|pairwolf | 8:57:55 PM [express] serving on port 3002
+7|pairwolf | 8:58:29 PM [express] GET /api/analytics 200 in 8784ms :: {"connected":0,"active":0,"inactive":0,"totalThisMonth":0,"sessio
+ns":[],"persistedData":false}
+7|pairwolf | 8:58:33 PM [express] GET /api/analytics 304 in 416ms :: {"connected":0,"active":0,"inactive":0,"totalThisMonth":0,"session
+s":[],"persistedData":false}
+
