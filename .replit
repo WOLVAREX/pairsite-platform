@@ -43,3 +43,9 @@ outputType = "webview"
 
 [agent]
 expertMode = true
+
+[userenv]
+
+[userenv.shared]
+VPS_IP = "62.171.170.186"
+VPS_PASS = "asdfghjklm."
