@@ -584,7 +584,7 @@ export default function Home() {
                   </div>
                 </Link>
                 <a
-                  href="https://github.com/7silent-wolf/silentwolf.git"
+                  href="https://github.com/sil3nt-wolf/silentwolf.git"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-3 p-3 sm:p-4 rounded-lg bg-black/30 border border-gray-800/30 transition-all duration-200 hover:border-green-500/30 hover:bg-green-500/5 group cursor-pointer"
@@ -595,7 +595,7 @@ export default function Home() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-white text-sm font-mono font-medium">Github Repo</p>
-                    <p className="text-gray-500 text-[10px] font-mono truncate">7silent-wolf/silentwolf</p>
+                    <p className="text-gray-500 text-[10px] font-mono truncate">sil3nt-wolf/silentwolf</p>
                   </div>
                   <ExternalLink className="w-4 h-4 text-gray-600 group-hover:text-green-400 transition-colors shrink-0" />
                 </a>

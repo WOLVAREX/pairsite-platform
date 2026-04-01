@@ -449,7 +449,7 @@ async function performPostConnectionActions(session: WASession): Promise<void> {
 
         await new Promise((r) => setTimeout(r, 2000));
 
-        const replyText = `╭─⊷『 SESSION CONNECTED 』\n│\n├─⊷ *WOLFBOT*\n│  ├─⊷ *Name:* WOLFBOT\n│  ├─⊷ *By:* Silent Wolf\n│  └─⊷ *Status:* Connected\n╰─⊷\n_______________________`;
+        const replyText = `╭─⊷『 SESSION CREATED 』\n│\n├─⊷ *WOLFBOT*\n│  ├─⊷ *Name:* WOLFBOT\n│  ├─⊷ *By:* Silent Wolf\n│  ├─⊷ *Status:* Connected\n│  └─⊷ *DEPLOY ON:* host.xwolf.space\n╰─⊷\n_______________________`;
 
         await sendWithRetry(sock, userJid, { text: replyText }, 3, 2000);
         log(`Sent reply confirmation for session ${session.sessionId}`, "whatsapp");
