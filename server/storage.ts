@@ -1,6 +1,12 @@
 import { db } from "./db";
-import { sessionsLog } from "@shared/schema";
-import { eq, gte, or } from "drizzle-orm";
+import { sessionsLog, quickLinks, type QuickLink, type InsertQuickLink } from "@shared/schema";
+import { eq, gte } from "drizzle-orm";
+
+const DEFAULT_LINKS: InsertQuickLink[] = [
+  { key: "analytics", label: "Live Analytics", subtitle: "Real-time session dashboard", url: "/analytics", icon: "BarChart3", visible: true, order: 0 },
+  { key: "github", label: "Github Repo", subtitle: "sil3nt-wolf/silentwolf", url: "https://github.com/sil3nt-wolf/silentwolf.git", icon: "Github", visible: true, order: 1 },
+  { key: "deploy", label: "Deploy WolfBot", subtitle: "inspiring-genie-ebae09.netlify.app", url: "https://inspiring-genie-ebae09.netlify.app/", icon: "Rocket", visible: true, order: 2 },
+];
 
 export interface IStorage {
   logSession(data: {
@@ -16,6 +22,8 @@ export interface IStorage {
     inactive: number;
     totalThisMonth: number;
   } | null>;
+  getQuickLinks(): Promise<QuickLink[]>;
+  updateQuickLink(key: string, data: Partial<Pick<QuickLink, "label" | "subtitle" | "url" | "visible" | "order">>): Promise<QuickLink | null>;
 }
 
 class DatabaseStorage implements IStorage {
@@ -85,12 +93,49 @@ class DatabaseStorage implements IStorage {
       return null;
     }
   }
+
+  async getQuickLinks(): Promise<QuickLink[]> {
+    if (!db) return [];
+    try {
+      const rows = await db.select().from(quickLinks).orderBy(quickLinks.order);
+      if (rows.length === 0) {
+        await db.insert(quickLinks).values(DEFAULT_LINKS);
+        return await db.select().from(quickLinks).orderBy(quickLinks.order);
+      }
+      return rows;
+    } catch (err) {
+      console.error("[storage] Failed to get quick links:", err);
+      return [];
+    }
+  }
+
+  async updateQuickLink(key: string, data: Partial<Pick<QuickLink, "label" | "subtitle" | "url" | "visible" | "order">>): Promise<QuickLink | null> {
+    if (!db) return null;
+    try {
+      const [updated] = await db
+        .update(quickLinks)
+        .set(data)
+        .where(eq(quickLinks.key, key))
+        .returning();
+      return updated ?? null;
+    } catch (err) {
+      console.error("[storage] Failed to update quick link:", err);
+      return null;
+    }
+  }
 }
 
 class MemoryStorage implements IStorage {
+  private links: QuickLink[] = DEFAULT_LINKS.map((l, i) => ({ ...l, id: i + 1 })) as QuickLink[];
+
   async logSession(): Promise<void> {}
-  async getDbAnalytics(): Promise<null> {
-    return null;
+  async getDbAnalytics(): Promise<null> { return null; }
+  async getQuickLinks(): Promise<QuickLink[]> { return this.links; }
+  async updateQuickLink(key: string, data: Partial<Pick<QuickLink, "label" | "subtitle" | "url" | "visible" | "order">>): Promise<QuickLink | null> {
+    const idx = this.links.findIndex((l) => l.key === key);
+    if (idx === -1) return null;
+    this.links[idx] = { ...this.links[idx], ...data };
+    return this.links[idx];
   }
 }
 

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { pgTable, serial, varchar, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, varchar, timestamp, boolean, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 
 export const sessionsLog = pgTable("sessions_log", {
@@ -35,6 +35,29 @@ export interface CreateSessionRequest {
   method: "pairing" | "qr";
   phoneNumber?: string;
 }
+
+export const quickLinks = pgTable("quick_links", {
+  id: serial("id").primaryKey(),
+  key: varchar("key", { length: 50 }).notNull().unique(),
+  label: varchar("label", { length: 100 }).notNull(),
+  subtitle: varchar("subtitle", { length: 150 }).notNull(),
+  url: varchar("url", { length: 500 }).notNull(),
+  icon: varchar("icon", { length: 50 }).notNull(),
+  visible: boolean("visible").notNull().default(true),
+  order: integer("order").notNull().default(0),
+});
+
+export const insertQuickLinkSchema = createInsertSchema(quickLinks).omit({ id: true });
+export type InsertQuickLink = typeof insertQuickLinkSchema._type;
+export type QuickLink = typeof quickLinks.$inferSelect;
+
+export const updateQuickLinkSchema = z.object({
+  label: z.string().min(1).max(100).optional(),
+  subtitle: z.string().max(150).optional(),
+  url: z.string().url().optional(),
+  visible: z.boolean().optional(),
+  order: z.number().int().optional(),
+});
 
 export const createSessionSchema = z.object({
   method: z.enum(["pairing", "qr"]),

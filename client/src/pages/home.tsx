@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { SessionResponse, SessionStatus } from "@shared/schema";
+import type { SessionResponse, SessionStatus, QuickLink } from "@shared/schema";
 import {
   ArrowUpRight,
   Copy,
@@ -26,6 +26,51 @@ import {
 } from "lucide-react";
 import { Link } from "wouter";
 import { SiWhatsapp, SiGithub } from "react-icons/si";
+
+function QuickLinkIcon({ icon }: { icon: string }) {
+  if (icon === "Github") return <SiGithub className="w-4 h-4 sm:w-5 sm:h-5 text-green-400" />;
+  if (icon === "Rocket") return <Rocket className="w-4 h-4 sm:w-5 sm:h-5 text-green-400" />;
+  return <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 text-green-400" />;
+}
+
+function QuickLinksSection() {
+  const { data: links = [] } = useQuery<QuickLink[]>({
+    queryKey: ["/api/quick-links"],
+  });
+
+  const visible = links.filter((l) => l.visible).sort((a, b) => a.order - b.order);
+
+  return (
+    <div className="space-y-3">
+      {visible.map((link) => {
+        const isInternal = link.url.startsWith("/");
+        const inner = (
+          <div
+            className="flex items-center gap-3 p-3 sm:p-4 rounded-lg bg-black/30 border border-gray-800/30 transition-all duration-200 hover:border-green-500/30 hover:bg-green-500/5 group cursor-pointer"
+            data-testid={`link-${link.key}`}
+          >
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-green-500/10 flex items-center justify-center shrink-0">
+              <QuickLinkIcon icon={link.icon} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-white text-sm font-mono font-medium">{link.label}</p>
+              <p className="text-gray-500 text-[10px] font-mono truncate">{link.subtitle}</p>
+            </div>
+            {isInternal
+              ? <ArrowUpRight className="w-4 h-4 text-gray-600 group-hover:text-green-400 transition-colors shrink-0" />
+              : <ExternalLink className="w-4 h-4 text-gray-600 group-hover:text-green-400 transition-colors shrink-0" />}
+          </div>
+        );
+
+        return isInternal ? (
+          <Link key={link.key} href={link.url}>{inner}</Link>
+        ) : (
+          <a key={link.key} href={link.url} target="_blank" rel="noopener noreferrer">{inner}</a>
+        );
+      })}
+    </div>
+  );
+}
 
 function GlassCard({
   children,
@@ -567,55 +612,7 @@ export default function Home() {
                   <p className="text-xs text-gray-500 font-mono">Resources & Deploy</p>
                 </div>
               </div>
-              <div className="space-y-3">
-                <Link href="/analytics">
-                  <div
-                    className="flex items-center gap-3 p-3 sm:p-4 rounded-lg bg-black/30 border border-gray-800/30 transition-all duration-200 hover:border-green-500/30 hover:bg-green-500/5 group cursor-pointer"
-                    data-testid="link-live-analytics"
-                  >
-                    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-green-500/10 flex items-center justify-center shrink-0">
-                      <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 text-green-400" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-white text-sm font-mono font-medium">Live Analytics</p>
-                      <p className="text-gray-500 text-[10px] font-mono truncate">Real-time session dashboard</p>
-                    </div>
-                    <ArrowUpRight className="w-4 h-4 text-gray-600 group-hover:text-green-400 transition-colors shrink-0" />
-                  </div>
-                </Link>
-                <a
-                  href="https://github.com/sil3nt-wolf/silentwolf.git"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-3 p-3 sm:p-4 rounded-lg bg-black/30 border border-gray-800/30 transition-all duration-200 hover:border-green-500/30 hover:bg-green-500/5 group cursor-pointer"
-                  data-testid="link-github-repo"
-                >
-                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-green-500/10 flex items-center justify-center shrink-0">
-                    <SiGithub className="w-4 h-4 sm:w-5 sm:h-5 text-green-400" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-white text-sm font-mono font-medium">Github Repo</p>
-                    <p className="text-gray-500 text-[10px] font-mono truncate">sil3nt-wolf/silentwolf</p>
-                  </div>
-                  <ExternalLink className="w-4 h-4 text-gray-600 group-hover:text-green-400 transition-colors shrink-0" />
-                </a>
-                <a
-                  href="https://inspiring-genie-ebae09.netlify.app/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-3 p-3 sm:p-4 rounded-lg bg-black/30 border border-gray-800/30 transition-all duration-200 hover:border-green-500/30 hover:bg-green-500/5 group cursor-pointer"
-                  data-testid="link-deploy-wolfbot"
-                >
-                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-green-500/10 flex items-center justify-center shrink-0">
-                    <Rocket className="w-4 h-4 sm:w-5 sm:h-5 text-green-400" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-white text-sm font-mono font-medium">Deploy WolfBot</p>
-                    <p className="text-gray-500 text-[10px] font-mono truncate">inspiring-genie-ebae09.netlify.app</p>
-                  </div>
-                  <ExternalLink className="w-4 h-4 text-gray-600 group-hover:text-green-400 transition-colors shrink-0" />
-                </a>
-              </div>
+              <QuickLinksSection />
             </GlassCard>
 
             <div className="space-y-3">

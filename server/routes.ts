@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
-import { createSessionSchema } from "@shared/schema";
+import { createSessionSchema, updateQuickLinkSchema } from "@shared/schema";
 import {
   createWhatsAppSession,
   getSessionStatus,
@@ -135,6 +135,44 @@ export async function registerRoutes(
     } catch (err: any) {
       return res.status(500).json({ error: err.message || "Internal server error" });
     }
+  });
+
+  app.get("/api/quick-links", async (_req, res) => {
+    try {
+      const links = await storage.getQuickLinks();
+      return res.json(links);
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message || "Internal server error" });
+    }
+  });
+
+  app.patch("/api/admin/quick-links/:key", async (req, res) => {
+    const adminPassword = process.env.ADMIN_PASSWORD || "wolf2024";
+    const authHeader = req.headers["x-admin-password"];
+    if (authHeader !== adminPassword) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    try {
+      const { key } = req.params;
+      const parsed = updateQuickLinkSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid request", details: parsed.error.flatten() });
+      }
+      const updated = await storage.updateQuickLink(key, parsed.data);
+      if (!updated) return res.status(404).json({ error: "Link not found" });
+      return res.json(updated);
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message || "Internal server error" });
+    }
+  });
+
+  app.post("/api/admin/verify", (req, res) => {
+    const adminPassword = process.env.ADMIN_PASSWORD || "wolf2024";
+    const { password } = req.body;
+    if (password === adminPassword) {
+      return res.json({ success: true });
+    }
+    return res.status(401).json({ error: "Invalid password" });
   });
 
   app.post("/api/terminate-session", async (req, res) => {
