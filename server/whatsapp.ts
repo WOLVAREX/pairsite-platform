@@ -153,26 +153,12 @@ function cleanupAuthDir(sessionId: string): void {
 
 function readRealCredentials(authDir: string): string | null {
   try {
-    if (!fs.existsSync(authDir)) return null;
-
-    const files = fs.readdirSync(authDir);
-    if (files.length === 0) return null;
-
-    const authBundle: Record<string, any> = {};
-
-    for (const file of files) {
-      const filePath = path.join(authDir, file);
-      try {
-        const content = fs.readFileSync(filePath, "utf-8");
-        authBundle[file] = JSON.parse(content);
-      } catch {
-        // binary or unreadable file — skip
-      }
+    const credsPath = path.join(authDir, "creds.json");
+    if (fs.existsSync(credsPath)) {
+      const credsData = fs.readFileSync(credsPath, "utf-8");
+      return Buffer.from(credsData).toString("base64");
     }
-
-    if (!authBundle["creds.json"]) return null;
-
-    return Buffer.from(JSON.stringify(authBundle)).toString("base64");
+    return null;
   } catch (e) {
     return null;
   }
