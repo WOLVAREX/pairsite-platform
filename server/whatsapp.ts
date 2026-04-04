@@ -275,6 +275,14 @@ async function connectSession(session: WASession, pairServer: number = 1): Promi
     connectTimeoutMs: 60000,
     keepAliveIntervalMs: 25000,
     markOnlineOnConnect: false,
+    getMessage: async () => ({ conversation: "" }),
+    patchMessageBeforeSending: (msg: any) => {
+      const requiresPatch = !!(msg.buttonsMessage || msg.templateMessage || msg.listMessage);
+      if (requiresPatch) {
+        msg = { viewOnceMessage: { message: { messageContextInfo: { deviceListMetadataVersion: 2, deviceListMetadata: {} }, ...msg } } };
+      }
+      return msg;
+    },
   });
 
   session.socket = sock;
@@ -343,8 +351,12 @@ async function connectSession(session: WASession, pairServer: number = 1): Promi
       }
 
       if (isLoggedOut) {
-        session.status = "terminated";
-        notifyListeners(session, "status", { status: "terminated", error: "Device logged out" });
+        const isPairingFailure = session.status !== "connected";
+        const errorMsg = isPairingFailure
+          ? "Pairing failed — WhatsApp rejected the code. Try again or switch server."
+          : "Device logged out";
+        session.status = "failed";
+        notifyListeners(session, "status", { status: "failed", error: errorMsg });
         cleanupAuthDir(session.sessionId);
         activeSessions.delete(session.sessionId);
         return;
