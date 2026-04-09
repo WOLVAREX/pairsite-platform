@@ -8,9 +8,16 @@ if (process.env.DATABASE_URL) {
   const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     max: 10,
-    idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 5000,
+    idleTimeoutMillis: 60000,
+    connectionTimeoutMillis: 10000,
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 10000,
   });
+
+  pool.on("error", (err) => {
+    console.error("[db] Pool client error (will reconnect):", err.message);
+  });
+
   db = drizzle(pool, { schema });
 }
 
