@@ -95,7 +95,7 @@ function GlassCard({
 
 function GlowText({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
-    <span className={`${className}`} style={{ color: "#00ff00", textShadow: "0 0 20px rgba(0,255,0,0.8), 0 0 40px rgba(0,255,0,0.4), 0 0 60px rgba(0,255,0,0.2)" }}>
+    <span className={`${className}`} style={{ color: "#00ff00", textShadow: "0 0 12px rgba(0,255,0,0.55), 0 0 28px rgba(0,255,0,0.2)" }}>
       {children}
     </span>
   );
@@ -322,9 +322,10 @@ export default function Home() {
                   data-testid="button-method-pairing"
                   className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-md font-mono text-xs transition-all ${
                     activeMethod === "pairing"
-                      ? "bg-green-500/15 text-green-400 border border-green-500/30"
+                      ? "bg-[#00ff00]/10 border border-[#00ff00]/40"
                       : "text-gray-500 border border-transparent hover:text-gray-300"
                   }`}
+                  style={activeMethod === "pairing" ? { color: "#00ff00", boxShadow: "0 0 8px rgba(0,255,0,0.15)" } : {}}
                   onClick={() => setActiveMethod("pairing")}
                 >
                   <Hash className="w-3.5 h-3.5" />
@@ -334,9 +335,10 @@ export default function Home() {
                   data-testid="button-method-qr"
                   className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-md font-mono text-xs transition-all ${
                     activeMethod === "qr"
-                      ? "bg-green-500/15 text-green-400 border border-green-500/30"
+                      ? "bg-[#00ff00]/10 border border-[#00ff00]/40"
                       : "text-gray-500 border border-transparent hover:text-gray-300"
                   }`}
+                  style={activeMethod === "qr" ? { color: "#00ff00", boxShadow: "0 0 8px rgba(0,255,0,0.15)" } : {}}
                   onClick={() => setActiveMethod("qr")}
                 >
                   <QrCode className="w-3.5 h-3.5" />
@@ -358,9 +360,10 @@ export default function Home() {
                           onClick={() => setPairServer(num)}
                           className={`py-2 rounded border font-mono text-xs transition-all ${
                             pairServer === num
-                              ? "bg-green-500/20 text-green-400 border-green-500/50"
+                              ? "bg-[#00ff00]/10 border-[#00ff00]/50"
                               : "bg-black/40 text-gray-500 border-gray-800 hover:border-gray-700"
                           }`}
+                          style={pairServer === num ? { color: "#00ff00", boxShadow: "0 0 8px rgba(0,255,0,0.15)" } : {}}
                         >
                           Server {num}
                         </button>
@@ -404,7 +407,8 @@ export default function Home() {
                 data-testid="button-generate"
                 disabled={generateMutation.isPending || (activeMethod === "pairing" && !phoneNumber) || !!currentSessionId}
                 onClick={() => generateMutation.mutate(activeMethod)}
-                className="w-full mt-6 flex items-center justify-center gap-2 px-6 py-3.5 bg-green-500/10 border border-green-500/30 rounded-lg font-mono text-sm text-green-400 transition-all hover:bg-green-500/20 hover:scale-[1.01] disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed"
+                className="w-full mt-6 flex items-center justify-center gap-2 px-6 py-3.5 bg-[#00ff00]/10 border border-[#00ff00]/35 rounded-lg font-mono text-sm transition-all hover:bg-[#00ff00]/18 hover:scale-[1.01] disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed"
+                style={{ color: "#00ff00", boxShadow: "0 0 10px rgba(0,255,0,0.12)" }}
               >
                 {generateMutation.isPending ? (
                   <>
