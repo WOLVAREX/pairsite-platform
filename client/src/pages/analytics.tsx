@@ -43,8 +43,7 @@ function GlassCard({
 }) {
   return (
     <div
-      className={`relative backdrop-blur-sm bg-black/30 border border-green-500/20 rounded-xl transition-all duration-300 ${className}`}
-      style={{ boxShadow: "0 0 40px rgba(0, 255, 0, 0.06)" }}
+      className={`relative backdrop-blur-sm bg-black/30 border border-[#00ff00]/20 rounded-xl transition-all duration-300 ${className}`}
     >
       {children}
     </div>

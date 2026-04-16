@@ -28,9 +28,9 @@ import { Link } from "wouter";
 import { SiWhatsapp, SiGithub } from "react-icons/si";
 
 function QuickLinkIcon({ icon }: { icon: string }) {
-  if (icon === "Github") return <SiGithub className="w-4 h-4 sm:w-5 sm:h-5 text-green-400" />;
-  if (icon === "Rocket") return <Rocket className="w-4 h-4 sm:w-5 sm:h-5 text-green-400" />;
-  return <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 text-green-400" />;
+  if (icon === "Github") return <SiGithub className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: "#00ff00" }} />;
+  if (icon === "Rocket") return <Rocket className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: "#00ff00" }} />;
+  return <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: "#00ff00" }} />;
 }
 
 function QuickLinksSection() {
@@ -46,10 +46,10 @@ function QuickLinksSection() {
         const isInternal = link.url.startsWith("/");
         const inner = (
           <div
-            className="flex items-center gap-3 p-3 sm:p-4 rounded-lg bg-black/30 border border-gray-800/30 transition-all duration-200 hover:border-green-500/30 hover:bg-green-500/5 group cursor-pointer"
+            className="flex items-center gap-3 p-3 sm:p-4 rounded-lg bg-black/30 border border-gray-800/30 transition-all duration-200 hover:border-[#00ff00]/35 hover:bg-[#00ff00]/5 group cursor-pointer"
             data-testid={`link-${link.key}`}
           >
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-green-500/10 flex items-center justify-center shrink-0">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-[#00ff00]/10 border border-[#00ff00]/15 flex items-center justify-center shrink-0">
               <QuickLinkIcon icon={link.icon} />
             </div>
             <div className="min-w-0 flex-1">
@@ -57,8 +57,8 @@ function QuickLinksSection() {
               <p className="text-gray-500 text-[10px] font-mono truncate">{link.subtitle}</p>
             </div>
             {isInternal
-              ? <ArrowUpRight className="w-4 h-4 text-gray-600 group-hover:text-green-400 transition-colors shrink-0" />
-              : <ExternalLink className="w-4 h-4 text-gray-600 group-hover:text-green-400 transition-colors shrink-0" />}
+              ? <ArrowUpRight className="w-4 h-4 text-gray-600 transition-colors shrink-0 group-hover:[color:#00ff00]" />
+              : <ExternalLink className="w-4 h-4 text-gray-600 transition-colors shrink-0 group-hover:[color:#00ff00]" />}
           </div>
         );
 
@@ -83,10 +83,9 @@ function GlassCard({
 }) {
   return (
     <div
-      className={`relative backdrop-blur-sm bg-black/30 border border-green-500/20 rounded-xl transition-all duration-300 ${
-        hoverable ? "hover:border-green-500/40 hover:scale-[1.02] group" : ""
+      className={`relative backdrop-blur-sm bg-black/30 border border-[#00ff00]/20 rounded-xl transition-all duration-300 ${
+        hoverable ? "hover:border-[#00ff00]/35 hover:scale-[1.02] group" : ""
       } ${className}`}
-      style={{ boxShadow: "0 0 40px rgba(0, 255, 0, 0.08)" }}
     >
       {children}
     </div>
@@ -596,8 +595,8 @@ export default function Home() {
           <div className="md:col-span-2 space-y-6">
             <GlassCard className="p-4 sm:p-6">
               <div className="flex items-center gap-3 mb-5">
-                <div className="p-2 rounded-lg bg-green-500/10 border border-green-500/20">
-                  <Link2 className="w-5 h-5 text-green-400" />
+                <div className="p-2 rounded-lg bg-[#00ff00]/10 border border-[#00ff00]/20">
+                  <Link2 className="w-5 h-5" style={{ color: "#00ff00" }} />
                 </div>
                 <div>
                   <h2 className="text-sm font-bold text-white font-mono">Quick Links</h2>
