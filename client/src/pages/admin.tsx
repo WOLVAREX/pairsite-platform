@@ -45,14 +45,15 @@ function LoginScreen({ onLogin }: { onLogin: (password: string) => void }) {
   }
 
   return (
-    <div className="min-h-screen bg-[#080808] flex items-center justify-center p-4">
-      <div className="w-full max-w-sm">
+    <div className="min-h-screen bg-black flex items-center justify-center p-4 relative overflow-hidden">
+      <div className="neon-bg" />
+      <div className="w-full max-w-sm relative z-10">
         <div className="flex items-center gap-3 justify-center mb-8">
-          <div className="p-2 rounded-lg bg-green-500/10 border border-green-500/20">
+          <div className="p-2 rounded-lg bg-green-500/10 border border-green-500/20 animate-glow-pulse">
             <Shield className="w-6 h-6 text-green-400" />
           </div>
           <div>
-            <h1 className="text-white font-mono font-bold text-lg">Admin Panel</h1>
+            <h1 className="text-white font-display font-bold text-lg">Admin Panel</h1>
             <p className="text-gray-500 font-mono text-xs">WolfBot Management</p>
           </div>
         </div>
@@ -224,15 +225,16 @@ export default function Admin() {
   const sorted = [...links].sort((a, b) => a.order - b.order);
 
   return (
-    <div className="min-h-screen bg-[#080808] p-4 sm:p-8">
-      <div className="max-w-2xl mx-auto">
+    <div className="min-h-screen bg-black p-4 sm:p-8 relative overflow-hidden">
+      <div className="neon-bg" />
+      <div className="max-w-2xl mx-auto relative z-10">
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-green-500/10 border border-green-500/20">
+            <div className="p-2 rounded-lg bg-green-500/10 border border-green-500/20 animate-glow-pulse">
               <Shield className="w-5 h-5 text-green-400" />
             </div>
             <div>
-              <h1 className="text-white font-mono font-bold">Admin Dashboard</h1>
+              <h1 className="text-white font-display font-bold">Admin Dashboard</h1>
               <p className="text-gray-500 font-mono text-xs">WolfBot Management</p>
             </div>
           </div>

@@ -271,30 +271,18 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-black text-white relative overflow-hidden">
-      <div className="fixed inset-0 pointer-events-none">
-        <div
-          className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] rounded-full opacity-20"
-          style={{
-            background: "radial-gradient(ellipse, rgba(0,255,0,0.15) 0%, transparent 70%)",
-          }}
-        />
-        <div
-          className="absolute bottom-0 right-0 w-[400px] h-[400px] rounded-full opacity-10"
-          style={{
-            background: "radial-gradient(ellipse, rgba(0,255,0,0.2) 0%, transparent 70%)",
-          }}
-        />
-      </div>
+      <div className="neon-bg" />
 
       <div className="relative z-10 max-w-6xl mx-auto px-3 sm:px-6 py-6 sm:py-12">
         <header className="text-center mb-8 sm:mb-16">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-green-500/20 bg-green-500/5 mb-6">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-green-500/20 bg-green-500/5 mb-6 animate-fade-in-down">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-blink-dot" />
             <Bot className="w-3.5 h-3.5 text-green-400" />
             <span className="font-mono text-xs text-green-400 tracking-wider" data-testid="text-version">
               v2.0.0-beta
             </span>
           </div>
-          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-bold mb-4 tracking-tight">
+          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-bold mb-4 tracking-tight font-display animate-fade-in-up">
             <GlowText>WOLF</GlowText>
             <span className="text-white">BOT</span>
           </h1>

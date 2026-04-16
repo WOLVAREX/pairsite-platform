@@ -206,16 +206,7 @@ export default function Analytics() {
 
   return (
     <div className="min-h-screen bg-black text-white relative overflow-hidden">
-      <div className="fixed inset-0 pointer-events-none">
-        <div
-          className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] rounded-full opacity-20"
-          style={{ background: "radial-gradient(ellipse, rgba(0,255,0,0.12) 0%, transparent 70%)" }}
-        />
-        <div
-          className="absolute bottom-0 right-0 w-[400px] h-[400px] rounded-full opacity-10"
-          style={{ background: "radial-gradient(ellipse, rgba(0,255,0,0.15) 0%, transparent 70%)" }}
-        />
-      </div>
+      <div className="neon-bg" />
 
       <div className="relative z-10 max-w-6xl mx-auto px-3 sm:px-6 py-6 sm:py-10">
         <div className="flex items-center justify-between mb-8 sm:mb-10">
@@ -230,10 +221,10 @@ export default function Analytics() {
               </button>
             </Link>
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold font-mono tracking-tight">
+              <h1 className="text-xl sm:text-2xl font-bold font-display tracking-tight">
                 <GlowText>WOLF</GlowText>
                 <span className="text-white">BOT</span>
-                <span className="text-gray-500 font-normal ml-2">/ Analytics</span>
+                <span className="text-gray-500 font-normal font-mono ml-2">/ Analytics</span>
               </h1>
               <p className="text-gray-600 text-[10px] font-mono mt-0.5">
                 Live session tracking — auto-refreshes every 3s
