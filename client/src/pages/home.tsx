@@ -95,7 +95,7 @@ function GlassCard({
 
 function GlowText({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
-    <span className={`text-green-400 ${className}`} style={{ textShadow: "0 0 20px rgba(0, 255, 0, 0.5)" }}>
+    <span className={`${className}`} style={{ color: "#00ff00", textShadow: "0 0 20px rgba(0,255,0,0.8), 0 0 40px rgba(0,255,0,0.4), 0 0 60px rgba(0,255,0,0.2)" }}>
       {children}
     </span>
   );
@@ -275,10 +275,10 @@ export default function Home() {
 
       <div className="relative z-10 max-w-6xl mx-auto px-3 sm:px-6 py-6 sm:py-12">
         <header className="text-center mb-8 sm:mb-16">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-green-500/20 bg-green-500/5 mb-6 animate-fade-in-down">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-blink-dot" />
-            <Bot className="w-3.5 h-3.5 text-green-400" />
-            <span className="font-mono text-xs text-green-400 tracking-wider" data-testid="text-version">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-[#00ff00]/30 bg-[#00ff00]/5 mb-6 animate-fade-in-down">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#00ff00] animate-blink-dot" />
+            <Bot className="w-3.5 h-3.5" style={{ color: "#00ff00" }} />
+            <span className="font-mono text-xs tracking-wider" style={{ color: "#00ff00" }} data-testid="text-version">
               v2.0.0-beta
             </span>
           </div>

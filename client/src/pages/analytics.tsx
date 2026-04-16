@@ -53,7 +53,7 @@ function GlassCard({
 
 function GlowText({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
-    <span className={`text-green-400 ${className}`} style={{ textShadow: "0 0 20px rgba(0, 255, 0, 0.5)" }}>
+    <span className={`${className}`} style={{ color: "#00ff00", textShadow: "0 0 20px rgba(0,255,0,0.8), 0 0 40px rgba(0,255,0,0.4), 0 0 60px rgba(0,255,0,0.2)" }}>
       {children}
     </span>
   );
