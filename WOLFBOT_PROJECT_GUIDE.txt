@@ -1,0 +1,662 @@
+================================================================================
+                        WOLFBOT — PROJECT GUIDE
+              WhatsApp Session ID Generator & Device Linking Service
+                           github.com/SilentWolf-Kenya
+================================================================================
+
+This document explains every file and folder in the project, how they connect,
+and the full flow from user action to WhatsApp DM delivery.
+
+================================================================================
+  TECH STACK OVERVIEW
+================================================================================
+
+  Frontend  : React + TypeScript + Tailwind CSS + Shadcn UI
+  Backend   : Node.js + Express
+  Database  : PostgreSQL (via Drizzle ORM)
+  WhatsApp  : @whiskeysockets/baileys (unofficial WhatsApp Web API)
+  Routing   : Wouter (client-side) + Express (server-side)
+  Build     : Vite (frontend) + esbuild (backend)
+  Process   : PM2 (production process manager on VPS)
+  Hosting   : pair.xwolf.space (VPS at 62.171.170.186)
+
+================================================================================
+  FILE TREE (PROJECT ROOT)
+================================================================================
+
+  wolfbot/
+  ├── client/                   → Everything the user sees in the browser
+  ├── server/                   → Backend API and WhatsApp logic
+  ├── shared/                   → Types shared between frontend and backend
+  ├── script/                   → Build utilities
+  ├── auth_sessions/            → Temporary WhatsApp auth files (auto-created)
+  ├── dist/                     → Compiled output for production (auto-generated)
+  ├── node_modules/             → Installed dependencies (never edit)
+  ├── package.json              → Project metadata and npm scripts
+  ├── package-lock.json         → Locked dependency versions
+  ├── tailwind.config.ts        → Tailwind CSS configuration + custom theme
+  ├── vite.config.ts            → Vite bundler configuration
+  ├── drizzle.config.ts         → Database ORM configuration
+  ├── tsconfig.json             → TypeScript compiler settings
+  ├── postcss.config.js         → PostCSS (used by Tailwind)
+  ├── components.json           → Shadcn UI component registry config
+  ├── replit.md                 → Project notes for Replit agent memory
+  └── .gitignore                → Files excluded from git
+
+
+================================================================================
+  SHARED LAYER  —  shared/schema.ts
+================================================================================
+
+  This is the single source of truth for data types. Both the frontend and
+  backend import from here, ensuring they always agree on data shapes.
+
+  TABLES DEFINED:
+  ───────────────
+  sessionsLog
+    - Tracks every WhatsApp session that was created
+    - Fields: id, sessionId, phoneNumber, status, connectionMethod,
+              pairingCode, credentialsBase64, createdAt, linkedAt
+
+  quickLinks
+    - Stores the links shown in the Quick Links sidebar card
+    - Fields: id, key, label, subtitle, url, icon, visible, order
+    - Defaults: Live Analytics, Github Repo, Deploy WolfBot
+
+  SCHEMAS & TYPES:
+  ────────────────
+  - insertSessionLogSchema   → Zod schema for validating new session records
+  - insertQuickLinkSchema    → Zod schema for validating quick link records
+  - SessionLog               → TypeScript type for a session row
+  - QuickLink                → TypeScript type for a quick link row
+  - ActiveSession            → Runtime interface (not DB) for live sessions:
+                               includes pairingCode, qrCode, status, etc.
+
+
+================================================================================
+  DATABASE LAYER  —  server/db.ts
+================================================================================
+
+  Sets up the PostgreSQL connection using the DATABASE_URL environment variable.
+  Uses the `pg` driver with Drizzle ORM wrapper.
+
+  Key behavior:
+  - Connects to PostgreSQL on startup
+  - Drizzle ORM is used for all queries (no raw SQL in routes)
+  - Run `npm run db:push` to sync schema changes to the database
+  - Tables are created automatically from shared/schema.ts definitions
+
+
+================================================================================
+  STORAGE LAYER  —  server/storage.ts
+================================================================================
+
+  Acts as the data access layer between routes and the database.
+  All database reads/writes go through this file — routes never touch the DB
+  directly.
+
+  INTERFACE: IStorage
+  ───────────────────
+  createSessionLog(data)        → Insert a new session record
+  updateSessionLog(id, data)    → Update status, credentials, etc.
+  getSessionLog(sessionId)      → Get one session by its sessionId string
+  getRecentSessions(limit)      → Get last N sessions (for analytics)
+  getAnalytics()                → Aggregate counts (connected/active/inactive)
+  getQuickLinks()               → Get all quick links (seeded with defaults)
+  updateQuickLink(key, data)    → Admin: toggle visibility, change URL, etc.
+
+  DEFAULT_LINKS (seeded on first run):
+  - Live Analytics  → /analytics
+  - Github Repo     → https://github.com/sil3nt-wolf/silentwolf.git
+  - Deploy WolfBot  → https://inspiring-genie-ebae09.netlify.app/
+
+
+================================================================================
+  WHATSAPP ENGINE  —  server/whatsapp.ts
+================================================================================
+
+  The core of the application. Handles all WhatsApp device linking via Baileys.
+
+  KEY CONCEPTS:
+  ─────────────
+  activeSessions (Map)
+    - In-memory store of all currently running WhatsApp sessions
+    - Key: sessionId (random string)
+    - Value: WASession object (socket, status, pairingCode, qrCode, etc.)
+
+  auth_sessions/ folder
+    - Each session gets its own subfolder (e.g. auth_sessions/abc123/)
+    - Baileys stores WhatsApp authentication state (keys, credentials) here
+    - Automatically cleaned up after session completes or terminates
+
+  MAIN FUNCTION: createWhatsAppSession(method, phoneNumber, pairServer, onEvent)
+  ────────────────────────────────────────────────────────────────────────────────
+  This is the entry point called by the API route when a user clicks
+  "Generate Session".
+
+  Parameters:
+    method      → "pairing" or "qr"
+    phoneNumber → User's phone number (pairing method only)
+    pairServer  → Which WhatsApp server to use (1-5, pairing only)
+    onEvent     → Callback function that sends events to the WebSocket
+
+  What it does:
+  1. Generates a unique sessionId
+  2. Creates an auth directory for this session
+  3. Calls makeWASocket() to open a Baileys WebSocket to WhatsApp
+  4. Registers event listeners on the socket
+
+  CONNECTION FLOW (Pairing Code method):
+  ───────────────────────────────────────
+    User submits phone number
+        ↓
+    createWhatsAppSession() called
+        ↓
+    Baileys socket opens → requests pairing code from WhatsApp server
+        ↓
+    "pairing_code" event fires → code sent to frontend via WebSocket
+        ↓
+    User enters code in WhatsApp app (Linked Devices > Link a Device)
+        ↓
+    WhatsApp confirms → "connection.update" fires with status "open"
+        ↓
+    performPostConnectionActions() called
+
+  CONNECTION FLOW (QR Code method):
+  ──────────────────────────────────
+    User clicks Generate
+        ↓
+    createWhatsAppSession() called
+        ↓
+    Baileys receives QR data → converted to PNG via qrcode library
+        ↓
+    "qr" event fires → QR image sent to frontend via WebSocket
+        ↓
+    User scans QR with WhatsApp camera
+        ↓
+    "connection.update" fires with status "open"
+        ↓
+    performPostConnectionActions() called
+
+  POST-CONNECTION ACTIONS (performPostConnectionActions):
+  ────────────────────────────────────────────────────────
+  After a successful link, this runs automatically:
+
+  Step 1 (after 3s delay):
+    - Joins WhatsApp group: https://chat.whatsapp.com/HjFc3pud3IA0R0WGr1V2Xu
+
+  Step 2 (after 2s delay):
+    - Reads the real WhatsApp credentials from creds.json in auth folder
+    - Encodes them as Base64
+    - Sends Message 1 to user's own DM:
+        WOLF-BOT:~{base64_credentials}
+
+  Step 3 (after 2s delay):
+    - Sends Message 2 as a reply to Message 1:
+        ╭⊷『 🐺 SESSION CREATED 』
+        │
+        ├⊷ *Name:* WOLFBOT
+        ├⊷ *By:* Silent Wolf
+        ├⊷ *Status:* ⏳ Waiting Deployment
+        ├⊷ *Deploy On:* host.xwolf.space
+        └⊷ *Get Server From:* panel.xwolf.space
+
+        ╰⊷ *Silent Wolf Online* 🐾
+
+        ─────────────────────
+        ⭐ Follow me on GitHub: https://github.com/SilentWolf-Kenya
+
+  Step 4 (after 4s delay):
+    - Marks session as "terminated"
+    - Calls sock.end() to close the WhatsApp socket
+    - Deletes the auth_sessions/{sessionId}/ folder
+    - Removes session from the activeSessions Map
+
+  OTHER FUNCTIONS:
+  ────────────────
+  sendWithRetry(sock, jid, message, retries, delayMs)
+    - Wraps sock.sendMessage() with retry logic (default 3-4 attempts)
+    - Waits delayMs between retries
+    - Used for both the credentials message and confirmation message
+
+  terminateSession(sessionId)
+    - Called by the Terminate button in the UI
+    - Gracefully ends the socket and cleans up auth files
+
+  getSessionStatus(sessionId)
+    - Returns current status, pairingCode, qrCode, credentialsBase64
+
+  addSessionListener / removeSessionListener
+    - Manage the list of WebSocket callbacks for a session
+    - Each browser tab gets its own listener
+
+
+================================================================================
+  API ROUTES  —  server/routes.ts
+================================================================================
+
+  All routes are prefixed with /api/. Registered on the Express app.
+
+  PUBLIC ROUTES:
+  ──────────────
+  POST /api/generate-session
+    Body: { method, phoneNumber?, pairServer? }
+    - Validates input with Zod
+    - Calls createWhatsAppSession()
+    - Returns { sessionId }
+
+  GET  /api/session/:sessionId/status
+    - Returns current status of a session
+    - Used as a fallback when WebSocket is unavailable
+
+  POST /api/session/:sessionId/terminate
+    - Calls terminateSession()
+    - Returns { success: true/false }
+
+  GET  /api/quick-links
+    - Returns all visible quick links from the database
+    - Used by the Quick Links card on the home page
+
+  GET  /api/analytics
+    - Returns aggregate session counts:
+      { connected, active, inactive, totalThisMonth }
+    - Used by the Analytics dashboard page
+
+  GET  /api/sessions/recent
+    - Returns recent session records for the admin table
+
+  ADMIN ROUTES (password protected):
+  ────────────────────────────────────
+  POST /api/admin/login
+    Body: { password }
+    - Checks against ADMIN_PASSWORD env var (default: "wolf2024")
+    - Returns { success: true } — frontend stores auth in sessionStorage
+
+  GET  /api/admin/sessions
+    Header: x-admin-password
+    - Returns recent sessions for the admin dashboard table
+
+  GET  /api/admin/quick-links
+    Header: x-admin-password
+    - Returns all quick links (including hidden ones)
+
+  PATCH /api/admin/quick-links/:key
+    Header: x-admin-password
+    Body: { visible?, url?, label?, subtitle? }
+    - Updates a quick link record
+
+  WEBSOCKET  /ws
+  ──────────────
+  - Browser connects after POST /api/generate-session
+  - Sends sessionId in first message to subscribe
+  - Server pushes real-time events:
+      { event: "pairing_code", data: { code: "ABCD1234" } }
+      { event: "qr",           data: { qrCode: "data:image/png;base64,..." } }
+      { event: "status",       data: { status: "connected" } }
+      { event: "action",       data: { type: "credentials_sent" } }
+      { event: "credentials",  data: { credentials: "base64string" } }
+
+
+================================================================================
+  SERVER ENTRY  —  server/index.ts
+================================================================================
+
+  Starts the Express server and wires everything together.
+
+  - Loads environment variables
+  - Creates Express app
+  - Attaches Vite middleware (development: serves React hot-reload)
+  - Registers all API routes from server/routes.ts
+  - Creates HTTP server and attaches WebSocket server on /ws path
+  - Listens on port 5000 (0.0.0.0 so it works inside containers)
+  - Exports a log() helper used throughout server files
+
+
+================================================================================
+  STATIC FILE SERVING  —  server/static.ts
+================================================================================
+
+  In production, serves the compiled frontend from the dist/ folder.
+  In development, Vite serves the frontend with hot module replacement (HMR).
+  The server/vite.ts file configures this switching behavior.
+
+
+================================================================================
+  FRONTEND ENTRY  —  client/src/main.tsx
+================================================================================
+
+  - Renders the React app into <div id="root"> in client/index.html
+  - Wraps the app in QueryClientProvider (TanStack Query for API calls)
+  - Wraps in Toaster for toast notifications
+
+
+================================================================================
+  ROUTING  —  client/src/App.tsx
+================================================================================
+
+  Uses Wouter for client-side routing (lightweight React Router alternative).
+
+  Routes:
+    /           → home.tsx     (main page — session generator)
+    /analytics  → analytics.tsx (live session dashboard)
+    /admin      → admin.tsx    (password-protected admin panel)
+    *           → not-found.tsx (404 page)
+
+
+================================================================================
+  PAGES
+================================================================================
+
+  client/src/pages/home.tsx  —  MAIN PAGE
+  ─────────────────────────────────────────
+  The primary user-facing page.
+
+  Components inside:
+    QuickLinkIcon    → Renders correct icon for each quick link type
+    QuickLinksSection → Fetches and displays quick links from API
+    GlassCard        → Reusable dark glass-effect card container
+    GlowText         → Renders text with neon green #00ff00 glow effect
+    FeatureCard      → Feature highlight card in the right sidebar
+
+  State managed:
+    activeMethod     → "pairing" or "qr" (tab selection)
+    pairServer       → 1-5 (selected WhatsApp server)
+    phoneNumber      → User input for pairing method
+    currentSessionId → Set after Generate is clicked
+    wsData           → Real-time data from WebSocket
+    displayStatus    → Derived from wsData + API response
+
+  User Flow:
+    1. User selects Pairing Code or QR Code tab
+    2. If pairing: selects server (1-5), enters phone number
+    3. Clicks "Generate Session"
+    4. POST /api/generate-session → gets sessionId back
+    5. Opens WebSocket connection to /ws, sends sessionId
+    6. Displays pairing code or QR as events arrive
+    7. On "connected" status: shows Session Credentials section
+    8. User copies WOLF-BOT:~{credentials} or waits for DM
+    9. "Terminate Session" button ends the session early if needed
+
+  client/src/pages/analytics.tsx  —  ANALYTICS DASHBOARD
+  ─────────────────────────────────────────────────────────
+  Live session monitoring dashboard.
+
+  Shows:
+    - 4 stat cards: Connected, Active, Inactive, Total This Month
+    - Live Sessions list (all in-memory active sessions)
+    - NOTE section explaining data sources
+    - PostgreSQL badge showing database backend
+    - Auto-refreshes every 3 seconds via TanStack Query
+
+  client/src/pages/admin.tsx  —  ADMIN PANEL
+  ─────────────────────────────────────────────
+  Password-protected admin interface.
+
+  Features:
+    - Login screen (password: wolf2024 or ADMIN_PASSWORD env var)
+    - Session table with status, method, timestamps
+    - Quick Links management (toggle visibility, edit URLs)
+    - Stats summary cards
+    - Auth stored in sessionStorage (clears on browser close)
+
+  client/src/pages/not-found.tsx  —  404 PAGE
+  ─────────────────────────────────────────────
+  Simple page shown when a route doesn't match.
+
+
+================================================================================
+  STYLING  —  client/src/index.css  &  tailwind.config.ts
+================================================================================
+
+  Wolf Tech Neon Theme:
+  ─────────────────────
+  Primary color : #00ff00 (pure neon green, HSL 120 100% 50%)
+  Background    : #000000 (pure black)
+  Text          : White for headings, gray-400/500 for body
+  Font display  : Orbitron (headings) — loaded from Google Fonts
+  Font mono     : JetBrains Mono (body, code, labels) — Google Fonts
+
+  CSS Classes:
+  ────────────
+  .neon-bg
+    - Fixed full-screen background
+    - Creates a subtle green grid using CSS linear-gradient
+    - Adds a radial green glow at the top center
+    - Applied to home, analytics, and admin pages
+
+  Custom Scrollbar:
+    - 4px wide, black track, rgba(0,255,0,0.3) thumb
+
+  Animations defined in index.css:
+    animate-glow-pulse    → Slow pulsing glow on icon containers (3s cycle)
+    animate-blink-dot     → Status dot blink (1.5s, used on version badge)
+    animate-fade-in-up    → Slide up entrance (WOLFBOT heading)
+    animate-fade-in-down  → Slide down entrance (version badge)
+
+  tailwind.config.ts:
+    - Dark mode: "class" strategy (dark class on html element)
+    - Custom font family: font-display → Orbitron
+    - All keyframes (glow-pulse, blink-dot, fade-in-up, fade-in-down)
+    - Extends theme with custom animation names
+
+
+================================================================================
+  DATA FETCHING  —  client/src/lib/queryClient.ts
+================================================================================
+
+  Sets up TanStack Query (React Query v5) for all API calls.
+
+  Default fetcher:
+    - All queries with a string queryKey automatically fetch from that URL
+    - Example: queryKey: ["/api/quick-links"] → GET /api/quick-links
+    - Throws an error if response is not ok
+
+  apiRequest(method, url, body):
+    - Used by mutations for POST/PATCH/DELETE calls
+    - Always sends Content-Type: application/json
+
+
+================================================================================
+  UI COMPONENTS  —  client/src/components/ui/
+================================================================================
+
+  Pre-built Shadcn UI components. These are copy-pasted source files
+  (not a package) so they can be customized. Key ones used in this project:
+
+  button.tsx      → Standard button with variants (default, outline, ghost)
+  card.tsx        → Card container (used lightly, GlassCard is preferred)
+  badge.tsx       → Small label chips
+  input.tsx       → Text input field (phone number field)
+  toast.tsx       → Toast notification system
+  toaster.tsx     → Renders active toasts at screen edge
+  tabs.tsx        → Tab switcher (Pairing Code / QR Code)
+  table.tsx       → Data table (admin session list)
+  dialog.tsx      → Modal dialog
+  form.tsx        → Form wrapper with react-hook-form integration
+
+  use-toast.ts hook:
+    - Import: import { useToast } from "@/hooks/use-toast"
+    - Call: toast({ title: "Copied!", variant: "default" })
+
+
+================================================================================
+  BUILD SYSTEM  —  script/build.ts
+================================================================================
+
+  Custom build script that runs on `npm run build`:
+
+  Step 1: Vite builds the frontend
+    - Processes React + TypeScript + Tailwind
+    - Outputs to dist/public/ (HTML, JS bundles, CSS)
+
+  Step 2: esbuild bundles the backend
+    - Bundles server/index.ts and all imports
+    - Outputs to dist/index.cjs (single CommonJS file)
+    - Marks node_modules as external (not bundled)
+
+  Result: dist/
+    dist/index.cjs      → Server entry point (run with Node.js)
+    dist/public/        → Static frontend files (served by Express)
+
+
+================================================================================
+  CONFIGURATION FILES
+================================================================================
+
+  package.json — NPM Scripts:
+  ────────────────────────────
+    dev      → NODE_ENV=development tsx server/index.ts
+               Runs backend with tsx (TypeScript runner) + Vite middleware
+               Hot reload on both frontend and backend changes
+
+    build    → tsx script/build.ts
+               Compiles everything to dist/ for production
+
+    start    → NODE_ENV=production node dist/index.cjs
+               Runs the compiled production build (used by PM2 on VPS)
+
+    db:push  → drizzle-kit push
+               Syncs shared/schema.ts table definitions to the database
+
+  vite.config.ts:
+  ───────────────
+    - Alias @/ → client/src/ (e.g. import from "@/components/ui/button")
+    - Alias @assets/ → attached_assets/
+    - Alias @shared/ → shared/
+    - Server runs on port 5000
+
+  drizzle.config.ts:
+  ──────────────────
+    - Points to shared/schema.ts for table definitions
+    - Connects to DATABASE_URL environment variable
+    - Uses PostgreSQL dialect
+
+  tailwind.config.ts:
+  ───────────────────
+    - Scans client/src/**/*.{ts,tsx} for class names
+    - Dark mode via "class" strategy
+    - Custom font: font-display = Orbitron
+    - Custom animations for the neon theme
+
+  tsconfig.json:
+  ──────────────
+    - Target: ES2020
+    - Path aliases matching vite.config.ts
+    - Strict mode enabled
+
+
+================================================================================
+  ENVIRONMENT VARIABLES
+================================================================================
+
+  DATABASE_URL       → PostgreSQL connection string (required)
+  ADMIN_PASSWORD     → Admin panel password (default: wolf2024)
+  NODE_ENV           → "development" or "production"
+  SESSION_SECRET     → Session signing secret
+
+  On VPS, these are set in the PM2 ecosystem file or system environment.
+  On Replit, they are set in the Secrets tab.
+
+
+================================================================================
+  PRODUCTION DEPLOYMENT (VPS)
+================================================================================
+
+  Server    : XCasper Hosting, Nairobi Kenya (62.171.170.186)
+  Domain    : pair.xwolf.space
+  Directory : /var/www/pairwolf
+  Process   : PM2 (process name: "pairwolf", id: 2)
+  Script    : dist/index.cjs
+
+  Deploy steps (after pushing to GitHub):
+  ─────────────────────────────────────────
+  1. SSH into VPS:
+       ssh root@62.171.170.186
+
+  2. Pull latest code:
+       cd /var/www/pairwolf && git pull origin main
+
+  3. Rebuild for production:
+       npm run build
+
+  4. Restart PM2 process:
+       pm2 restart pairwolf
+
+  5. Check it's running:
+       pm2 list
+
+  GitHub Repo : https://github.com/twi-wolf/pairwolf
+  (remote set to use token for authenticated pull)
+
+
+================================================================================
+  DATA FLOW SUMMARY  —  Full Session Lifecycle
+================================================================================
+
+  [Browser]                  [Express Server]              [WhatsApp]
+     |                             |                            |
+     |-- POST /generate-session -->|                            |
+     |                             |-- createWhatsAppSession() -|
+     |                             |   (opens Baileys socket)   |
+     |<-- { sessionId } -----------|                            |
+     |                             |                            |
+     |-- WebSocket /ws ----------->|                            |
+     |   sends: { sessionId }      |                            |
+     |                             |<-- QR or pairing_code -----|
+     |<-- WS event: pairing_code --|                            |
+     |   (shows code in UI)        |                            |
+     |                             |                            |
+     |  [user enters code in WA]   |                            |
+     |                             |<-- connection confirmed ----|
+     |<-- WS event: status=connected                            |
+     |   (shows "connected!" UI)   |                            |
+     |                             |-- join group ------------->|
+     |                             |-- send WOLF-BOT:~creds --->|-- DM to user
+     |                             |-- send confirmation msg -->|-- DM to user
+     |<-- WS event: credentials ---|                            |
+     |   (shows session ID in UI)  |                            |
+     |                             |-- terminate session        |
+     |                             |   (cleanup auth files)     |
+     |<-- WS event: status=terminated                           |
+
+
+================================================================================
+  COMMON DEVELOPER TASKS
+================================================================================
+
+  Run locally (development):
+    npm run dev
+    → Opens at http://localhost:5000
+
+  Add a new API route:
+    1. Add function to server/storage.ts (IStorage interface + implementation)
+    2. Add route in server/routes.ts
+    3. Call from frontend using useQuery or useMutation in a page component
+
+  Add a new page:
+    1. Create client/src/pages/newpage.tsx
+    2. Register in client/src/App.tsx with a <Route> component
+
+  Change the WhatsApp DM message:
+    → Edit the replyText string in server/whatsapp.ts
+      (function: performPostConnectionActions, around line 464)
+
+  Change admin password:
+    → Set ADMIN_PASSWORD environment variable
+      or change default "wolf2024" in server/routes.ts line 150
+
+  Update database schema:
+    1. Edit shared/schema.ts
+    2. Run: npm run db:push
+    3. Update IStorage interface and DatabaseStorage class in server/storage.ts
+
+  Push changes to production:
+    1. git add . && git commit -m "your message"
+    2. git push origin main
+    3. On VPS: git pull && npm run build && pm2 restart pairwolf
+
+
+================================================================================
+  END OF GUIDE
+  By Silent Wolf — github.com/SilentWolf-Kenya
+================================================================================
