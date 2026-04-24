@@ -147,7 +147,7 @@ export async function registerRoutes(
   });
 
   app.patch("/api/admin/quick-links/:key", async (req, res) => {
-    const adminPassword = process.env.ADMIN_PASSWORD || "wolf2024";
+    const adminPassword = process.env.ADMIN_PASSWORD || "Silentwolf906.";
     const authHeader = req.headers["x-admin-password"];
     if (authHeader !== adminPassword) {
       return res.status(401).json({ error: "Unauthorized" });
@@ -167,7 +167,7 @@ export async function registerRoutes(
   });
 
   app.post("/api/admin/verify", (req, res) => {
-    const adminPassword = process.env.ADMIN_PASSWORD || "wolf2024";
+    const adminPassword = process.env.ADMIN_PASSWORD || "Silentwolf906.";
     const { password } = req.body;
     if (password === adminPassword) {
       return res.json({ success: true });
