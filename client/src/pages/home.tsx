@@ -38,7 +38,9 @@ function QuickLinksSection() {
     queryKey: ["/api/quick-links"],
   });
 
-  const visible = links.filter((l) => l.visible).sort((a, b) => a.order - b.order);
+  const visible = links
+    .filter((l) => l.visible && l.key !== "admin" && l.url !== "/admin")
+    .sort((a, b) => a.order - b.order);
 
   return (
     <div className="space-y-3">
@@ -283,7 +285,6 @@ export default function Home() {
           <div className="flex items-center gap-1 sm:gap-2">
             <Link href="/" data-active="true" className="nav-link rounded-lg border border-transparent px-2.5 sm:px-3 py-2 text-[10px] sm:text-xs font-mono">Pair</Link>
             <Link href="/analytics" className="nav-link rounded-lg border border-transparent px-2.5 sm:px-3 py-2 text-[10px] sm:text-xs font-mono">Analytics</Link>
-            <Link href="/admin" className="nav-link rounded-lg border border-transparent px-2.5 sm:px-3 py-2 text-[10px] sm:text-xs font-mono">Admin</Link>
           </div>
           <span className="status-pill hidden sm:inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-mono shrink-0">
             <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-blink-dot" /> online
