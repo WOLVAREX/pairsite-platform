@@ -190,6 +190,20 @@
     background: rgba(0, 255, 0, 0.3);
     border-radius: 2px;
   }
+
+  ::selection {
+    color: #031006;
+    background: #39d778;
+  }
+
+  button, a, input, select, textarea {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  :focus-visible {
+    outline: 2px solid rgba(57, 215, 120, 0.9);
+    outline-offset: 3px;
+  }
 }
 
 /* ─── NEON GRID BACKGROUND ─── */
@@ -208,6 +222,50 @@
   position: absolute;
   inset: 0;
   background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(0, 255, 0, 0.06) 0%, transparent 70%);
+}
+
+/* nodeX-inspired application shell */
+.app-shell {
+  background:
+    radial-gradient(circle at 50% -10%, rgba(57, 215, 120, 0.10), transparent 38rem),
+    linear-gradient(180deg, #080d0a 0%, #030504 55%, #020302 100%);
+}
+
+.app-topbar {
+  background: rgba(4, 9, 6, 0.78);
+  border: 1px solid rgba(57, 215, 120, 0.18);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.24), inset 0 -1px rgba(57, 215, 120, 0.06);
+  backdrop-filter: blur(18px);
+}
+
+.brand-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid rgba(57, 215, 120, 0.45);
+  border-radius: 0.65rem;
+  color: #39d778;
+  background: rgba(57, 215, 120, 0.08);
+  box-shadow: 0 0 22px rgba(57, 215, 120, 0.12);
+}
+
+.nav-link {
+  color: #70877a;
+  transition: color 180ms ease, background 180ms ease, border-color 180ms ease;
+}
+
+.nav-link:hover, .nav-link[data-active="true"] {
+  color: #b9f4cc;
+  background: rgba(57, 215, 120, 0.08);
+  border-color: rgba(57, 215, 120, 0.24);
+}
+
+.status-pill {
+  color: #39d778;
+  border: 1px solid rgba(57, 215, 120, 0.22);
+  background: rgba(57, 215, 120, 0.06);
 }
 
 /* ─── WOLF TECH ANIMATIONS ─── */

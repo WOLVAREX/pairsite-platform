@@ -269,11 +269,28 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white relative overflow-hidden">
+    <div className="min-h-screen app-shell text-white relative overflow-hidden">
       <div className="neon-bg" />
 
-      <div className="relative z-10 max-w-6xl mx-auto px-3 sm:px-6 py-6 sm:py-12">
-        <header className="text-center mb-8 sm:mb-16">
+      <div className="relative z-10 max-w-6xl mx-auto px-3 sm:px-6 py-4 sm:py-6">
+        <nav className="app-topbar sticky top-3 z-20 flex items-center justify-between gap-3 rounded-xl px-3 sm:px-5 py-2.5 mb-10 sm:mb-16">
+          <Link href="/" className="flex items-center gap-2.5 min-w-0">
+            <span className="brand-mark font-display font-bold">W</span>
+            <span className="font-display text-sm sm:text-base tracking-tight text-white truncate">
+              pair<span className="text-green-400">wolf</span>
+            </span>
+          </Link>
+          <div className="flex items-center gap-1 sm:gap-2">
+            <Link href="/" data-active="true" className="nav-link rounded-lg border border-transparent px-2.5 sm:px-3 py-2 text-[10px] sm:text-xs font-mono">Pair</Link>
+            <Link href="/analytics" className="nav-link rounded-lg border border-transparent px-2.5 sm:px-3 py-2 text-[10px] sm:text-xs font-mono">Analytics</Link>
+            <Link href="/admin" className="nav-link rounded-lg border border-transparent px-2.5 sm:px-3 py-2 text-[10px] sm:text-xs font-mono">Admin</Link>
+          </div>
+          <span className="status-pill hidden sm:inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-mono shrink-0">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-blink-dot" /> online
+          </span>
+        </nav>
+
+        <header className="text-center mb-8 sm:mb-14">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-[#00ff00]/30 bg-[#00ff00]/5 mb-6 animate-fade-in-down">
             <span className="w-1.5 h-1.5 rounded-full bg-[#00ff00] animate-blink-dot" />
             <Bot className="w-3.5 h-3.5" style={{ color: "#00ff00" }} />
