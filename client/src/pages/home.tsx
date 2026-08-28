@@ -28,9 +28,9 @@ import { Link } from "wouter";
 import { SiWhatsapp, SiGithub } from "react-icons/si";
 
 function QuickLinkIcon({ icon }: { icon: string }) {
-  if (icon === "Github") return <SiGithub className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: "#00ff00" }} />;
-  if (icon === "Rocket") return <Rocket className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: "#00ff00" }} />;
-  return <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: "#00ff00" }} />;
+  if (icon === "Github") return <SiGithub className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: "#22c55e" }} />;
+  if (icon === "Rocket") return <Rocket className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: "#22c55e" }} />;
+  return <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: "#22c55e" }} />;
 }
 
 function QuickLinksSection() {
@@ -95,11 +95,7 @@ function GlassCard({
 }
 
 function GlowText({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return (
-    <span className={`${className}`} style={{ color: "#00ff00", textShadow: "0 0 12px rgba(0,255,0,0.55), 0 0 28px rgba(0,255,0,0.2)" }}>
-      {children}
-    </span>
-  );
+  return <span className={`${className} text-[#22c55e]`}>{children}</span>;
 }
 
 function FeatureCard({ icon: Icon, title, desc }: { icon: React.ElementType; title: string; desc: string }) {
@@ -277,9 +273,8 @@ export default function Home() {
       <div className="relative z-10 max-w-6xl mx-auto px-3 sm:px-6 py-4 sm:py-6">
         <nav className="app-topbar sticky top-3 z-20 flex items-center justify-between gap-3 rounded-xl px-3 sm:px-5 py-2.5 mb-10 sm:mb-16">
           <Link href="/" className="flex items-center gap-2.5 min-w-0">
-            <span className="brand-mark font-display font-bold">W</span>
             <span className="font-display text-sm sm:text-base tracking-tight text-white truncate">
-              pair<span className="text-green-400">wolf</span>
+              WOLF<span className="text-gray-300">BOT</span>
             </span>
           </Link>
           <div className="flex items-center gap-1 sm:gap-2">
@@ -342,7 +337,7 @@ export default function Home() {
                       ? "bg-[#00ff00]/10 border border-[#00ff00]/40"
                       : "text-gray-500 border border-transparent hover:text-gray-300"
                   }`}
-                  style={activeMethod === "pairing" ? { color: "#00ff00", boxShadow: "0 0 8px rgba(0,255,0,0.15)" } : {}}
+                  style={activeMethod === "pairing" ? { color: "#22c55e" } : {}}
                   onClick={() => setActiveMethod("pairing")}
                 >
                   <Hash className="w-3.5 h-3.5" />
@@ -355,7 +350,7 @@ export default function Home() {
                       ? "bg-[#00ff00]/10 border border-[#00ff00]/40"
                       : "text-gray-500 border border-transparent hover:text-gray-300"
                   }`}
-                  style={activeMethod === "qr" ? { color: "#00ff00", boxShadow: "0 0 8px rgba(0,255,0,0.15)" } : {}}
+                  style={activeMethod === "qr" ? { color: "#22c55e" } : {}}
                   onClick={() => setActiveMethod("qr")}
                 >
                   <QrCode className="w-3.5 h-3.5" />
@@ -380,7 +375,7 @@ export default function Home() {
                               ? "bg-[#00ff00]/10 border-[#00ff00]/50"
                               : "bg-black/40 text-gray-500 border-gray-800 hover:border-gray-700"
                           }`}
-                          style={pairServer === num ? { color: "#00ff00", boxShadow: "0 0 8px rgba(0,255,0,0.15)" } : {}}
+                          style={pairServer === num ? { color: "#22c55e" } : {}}
                         >
                           Server {num}
                         </button>
@@ -425,7 +420,7 @@ export default function Home() {
                 disabled={generateMutation.isPending || (activeMethod === "pairing" && !phoneNumber) || !!currentSessionId}
                 onClick={() => generateMutation.mutate(activeMethod)}
                 className="w-full mt-6 flex items-center justify-center gap-2 px-6 py-3.5 bg-[#00ff00]/10 border border-[#00ff00]/35 rounded-lg font-mono text-sm transition-all hover:bg-[#00ff00]/18 hover:scale-[1.01] disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed"
-                style={{ color: "#00ff00", boxShadow: "0 0 10px rgba(0,255,0,0.12)" }}
+                style={{ color: "#22c55e" }}
               >
                 {generateMutation.isPending ? (
                   <>
@@ -491,7 +486,7 @@ export default function Home() {
                       >
                         <span
                           className="font-mono text-xl sm:text-2xl md:text-3xl tracking-[0.2em] sm:tracking-[0.3em] font-bold"
-                          style={{ color: "#00ff00", textShadow: "0 0 20px rgba(0, 255, 0, 0.4)" }}
+                          style={{ color: "#22c55e" }}
                           data-testid="text-pairing-code"
                         >
                           {formatPairingCode(displayPairingCode)}
@@ -614,7 +609,7 @@ export default function Home() {
             <GlassCard className="p-4 sm:p-6">
               <div className="flex items-center gap-3 mb-5">
                 <div className="p-2 rounded-lg bg-[#00ff00]/10 border border-[#00ff00]/20">
-                  <Link2 className="w-5 h-5" style={{ color: "#00ff00" }} />
+                  <Link2 className="w-5 h-5" style={{ color: "#22c55e" }} />
                 </div>
                 <div>
                   <h2 className="text-sm font-bold text-white font-mono">Quick Links</h2>

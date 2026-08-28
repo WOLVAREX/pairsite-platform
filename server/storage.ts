@@ -4,7 +4,7 @@ import { eq, gte } from "drizzle-orm";
 
 const DEFAULT_LINKS: InsertQuickLink[] = [
   { key: "analytics", label: "Live Analytics", subtitle: "Real-time session dashboard", url: "/analytics", icon: "BarChart3", visible: true, order: 0 },
-  { key: "github", label: "Github Repo", subtitle: "sil3nt-wolf/silentwolf", url: "https://github.com/sil3nt-wolf/silentwolf.git", icon: "Github", visible: true, order: 1 },
+  { key: "github", label: "Github Repo", subtitle: "WOLVAREX/silentwolf", url: "https://github.com/WOLVAREX/silentwolf", icon: "Github", visible: true, order: 1 },
   { key: "deploy", label: "Deploy WolfBot", subtitle: "inspiring-genie-ebae09.netlify.app", url: "https://inspiring-genie-ebae09.netlify.app/", icon: "Rocket", visible: true, order: 2 },
 ];
 
