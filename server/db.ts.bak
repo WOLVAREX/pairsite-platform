@@ -3,10 +3,9 @@ import { Pool } from "pg";
 import * as schema from "@shared/schema";
 
 let db: ReturnType<typeof drizzle<typeof schema>> | null = null;
-let pool: Pool | null = null;
 
 if (process.env.DATABASE_URL) {
-  pool = new Pool({
+  const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     max: 10,
     idleTimeoutMillis: 60000,
@@ -22,4 +21,4 @@ if (process.env.DATABASE_URL) {
   db = drizzle(pool, { schema });
 }
 
-export { db, pool };
+export { db };

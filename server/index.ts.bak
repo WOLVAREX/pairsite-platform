@@ -116,7 +116,6 @@ import { serveStatic } from "./static";
 import { createServer } from "http";
 import { pool } from "./db";
 import { configurePassport } from "./auth";
-import { resolveTenant } from "./tenant";
 
 const app = express();
 const httpServer = createServer(app);
@@ -169,7 +168,6 @@ app.use(
 configurePassport();
 app.use(passport.initialize());
 app.use(passport.session());
-app.use(resolveTenant);
 
 // Request logging middleware
 app.use((req, res, next) => {
