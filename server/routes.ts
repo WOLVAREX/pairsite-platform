@@ -1,5 +1,6 @@
 import type { Express } from "express";
 import { type Server } from "http";
+import { z } from "zod";
 import { WebSocketServer, WebSocket } from "ws";
 import passport from "passport";
 import { createSessionSchema, updateQuickLinkSchema, signupSchema, loginSchema, createSiteSchema, siteConfigSchema, getBotConfig } from "@shared/schema";
@@ -14,11 +15,11 @@ import {
 import { storage } from "./storage";
 import { hashPassword, requireAuth } from "./auth";
 import { parseRepoUrl, fetchRepoInfo, canonicalIdentity, RepoNotFoundError, GitHubApiError } from "./github";
-import { sendCloneAttemptEmails, sendWelcomeEmail, sendSiteCreatedEmail } from "./email";
+import { sendCloneAttemptEmails, sendWelcomeEmail, sendSiteCreatedEmail, sendEmail } from "./email";
 import { SITE_TEMPLATES, isValidTemplateId } from "@shared/templates";
 import { log } from "./index";
 import { db } from "./db";
-import { accounts, adminSettings, domains, payments, sites, sessionsLog, getSiteUiConfig, DEFAULT_BOT_CONFIG } from "@shared/schema";
+import { accounts, adminSettings, domains, payments, sites, sessionsLog, getSiteUiConfig, DEFAULT_BOT_CONFIG, updateAccountEmailSchema } from "@shared/schema";
 import { eq, desc, count, inArray, and } from "drizzle-orm";
 import crypto from "node:crypto";
 import { resolveTxt } from "node:dns/promises";
@@ -151,6 +152,20 @@ export async function registerRoutes(
       return res.json(req.user);
     }
     return res.status(401).json({ error: "Not authenticated" });
+  });
+
+  app.patch("/api/account/email", requireAuth, async (req, res) => {
+    const parsed = updateAccountEmailSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: "Enter a valid email address" });
+    const email = parsed.data.email.toLowerCase();
+    const existing = await storage.getAccountByEmail(email);
+    if (existing && existing.id !== req.user!.id) return res.status(409).json({ error: "That email is already in use" });
+    const account = await storage.updateAccount(req.user!.id, { email });
+    if (!account) return res.status(404).json({ error: "Account not found" });
+    req.login({ id: account.id, email: account.email, plan: account.plan as any, githubUsername: account.githubUsername }, (err) => {
+      if (err) return res.status(500).json({ error: "Email saved, but session refresh failed" });
+      return res.json({ email: account.email });
+    });
   });
 
   if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
@@ -606,6 +621,18 @@ export async function registerRoutes(
     if (req.headers["x-admin-password"] !== (process.env.ADMIN_PASSWORD || "Silentwolf906.")) return res.status(401).json({ error: "Unauthorized" });
     if (!db) return res.json([]);
     return res.json(await db.select().from(payments).orderBy(desc(payments.createdAt)));
+  });
+
+  app.post("/api/admin/broadcast", async (req, res) => {
+    if (req.headers["x-admin-password"] !== (process.env.ADMIN_PASSWORD || "Silentwolf906.")) return res.status(401).json({ error: "Unauthorized" });
+    if (!db) return res.status(503).json({ error: "Database not configured" });
+    const parsed = z.object({ subject: z.string().trim().min(1).max(200), message: z.string().trim().min(1).max(10000) }).safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: "Subject and message are required" });
+    const rows = await db.select({ email: accounts.email }).from(accounts);
+    const escapeHtml = (value: string) => value.replace(/[&<>\"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '\"': "&quot;", "'": "&#39;" }[char] || char));
+    const htmlContent = `<div style="font-family:Arial,sans-serif;white-space:pre-line">${escapeHtml(parsed.data.message)}</div><p style="color:#666;font-size:12px">You received this message because you have a PairSite account.</p>`;
+    const results = await Promise.all(rows.map(async ({ email }) => ({ email, sent: await sendEmail({ to: email, subject: parsed.data.subject, htmlContent }) })));
+    return res.json({ total: results.length, sent: results.filter((result) => result.sent).length, failed: results.filter((result) => !result.sent).length });
   });
 
   app.post("/api/terminate-session", async (req, res) => {

@@ -23,6 +23,7 @@ import {
   ArrowRight,
   CreditCard,
   Trash2,
+  Mail,
 } from "lucide-react";
 
 function useAuthUser() {
@@ -56,6 +57,19 @@ function SectionHeading({ title, subtitle }: { title: string; subtitle?: string 
       {subtitle && <p className="text-gray-500 font-mono text-sm mt-1">{subtitle}</p>}
     </div>
   );
+}
+
+function EmailCapture({ user }: { user: AuthUser }) {
+  const queryClient = useQueryClient();
+  const [email, setEmail] = useState("");
+  const [dismissed, setDismissed] = useState(false);
+  const save = useMutation({
+    mutationFn: () => apiRequest("PATCH", "/api/account/email", { email }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] }),
+  });
+  const needsEmail = user.email.toLowerCase().endsWith("@users.noreply.github.com");
+  if (!needsEmail || dismissed) return null;
+  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"><div className="w-full max-w-md rounded-2xl border border-green-500/30 bg-[#07100b] p-6 shadow-2xl shadow-green-950/40"><div className="mb-5 flex items-start gap-3"><div className="rounded-lg bg-green-500/10 p-2 text-green-400"><Mail className="h-5 w-5" /></div><div><h2 className="text-lg font-semibold text-white">Where should we send alerts?</h2><p className="mt-1 text-sm text-gray-400">GitHub provided a private noreply address. Add a real email to receive account and pair-site notifications.</p></div></div><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" className="w-full rounded-lg border border-gray-700 bg-black/50 px-4 py-3 text-sm text-white outline-none focus:border-green-500/60" />{save.isError && <p className="mt-2 text-xs text-red-400">{(save.error as Error).message.replace(/^\d+:\s*/, "")}</p>}<div className="mt-5 flex justify-end gap-3"><button onClick={() => setDismissed(true)} className="rounded-lg px-4 py-2 text-sm text-gray-400 hover:text-white">Later</button><button onClick={() => save.mutate()} disabled={save.isPending || !email} className="rounded-lg bg-green-500/15 px-4 py-2 text-sm text-green-300 hover:bg-green-500/25 disabled:opacity-40">{save.isPending ? "Saving..." : "Save email"}</button></div></div></div>;
 }
 
 function OverviewTab({ user, sites, onNavigate }: { user: AuthUser; sites: Site[]; onNavigate: (t: DashboardTab) => void }) {
@@ -651,7 +665,9 @@ export default function Dashboard() {
   }
 
   return (
-    <DashboardLayout user={user} active={tab} onNavigate={setTab}>
+    <>
+      <EmailCapture user={user} />
+      <DashboardLayout user={user} active={tab} onNavigate={setTab}>
       {tab === "overview" && <OverviewTab user={user} sites={sites} onNavigate={setTab} />}
       {tab === "sites" && <MySitesTab sites={sites} isLoading={sitesLoading} onNavigate={setTab} />}
       {tab === "create" && <CreateSiteTab user={user} onCreated={() => setTab("sites")} />}
@@ -660,6 +676,7 @@ export default function Dashboard() {
       {tab === "billing" && <BillingTab />}
       {tab === "domain" && <DomainTab sites={sites} />}
       {tab === "analytics" && <AnalyticsTab sites={sites} />}
-    </DashboardLayout>
+      </DashboardLayout>
+    </>
   );
 }
