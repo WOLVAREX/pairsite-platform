@@ -5,14 +5,18 @@ import {
   accounts,
   sites,
   domains,
+  cloneAttempts,
+  adminSettings,
   type QuickLink,
   type InsertQuickLink,
   type Account,
   type InsertAccount,
   type Site,
   type Domain,
+  type InsertCloneAttempt,
+  type AdminSettings,
 } from "@shared/schema";
-import { eq, gte } from "drizzle-orm";
+import { eq, gte, and, ne } from "drizzle-orm";
 
 const DEFAULT_LINKS: InsertQuickLink[] = [
   { key: "analytics", label: "Live Analytics", subtitle: "Real-time session dashboard", url: "/analytics", icon: "BarChart3", visible: true, order: 0 },
@@ -44,6 +48,11 @@ export interface IStorage {
   updateAccount(id: number, data: Partial<Account>): Promise<Account | null>;
   getSiteBySubdomain(subdomain: string): Promise<Site | null>;
   getVerifiedSiteByHostname(hostname: string): Promise<Site | null>;
+  createSite(data: Record<string, any>): Promise<Site>;
+  getSitesByAccount(accountId: number): Promise<Site[]>;
+  findConflictingSite(canonicalOwner: string, canonicalName: string, excludeAccountId: number): Promise<Site | null>;
+  logCloneAttempt(data: InsertCloneAttempt): Promise<void>;
+  getAdminSettings(): Promise<AdminSettings>;
 }
 
 class DatabaseStorage implements IStorage {
@@ -197,6 +206,44 @@ class DatabaseStorage implements IStorage {
     if (!row || !row.verified) return null;
     return row.site;
   }
+
+  async createSite(data: Record<string, any>): Promise<Site> {
+    if (!db) throw new Error("Database not configured");
+    const [site] = await db.insert(sites).values(data as any).returning();
+    return site;
+  }
+
+  async getSitesByAccount(accountId: number): Promise<Site[]> {
+    if (!db) return [];
+    return db.select().from(sites).where(eq(sites.accountId, accountId));
+  }
+
+  async findConflictingSite(canonicalOwner: string, canonicalName: string, excludeAccountId: number): Promise<Site | null> {
+    if (!db) return null;
+    const candidates = await db
+      .select()
+      .from(sites)
+      .where(and(eq(sites.repoOwner, canonicalOwner), ne(sites.accountId, excludeAccountId)));
+    const nameLower = canonicalName.toLowerCase();
+    return (
+      candidates.find((s) => {
+        if (!s.repoUrl) return false;
+        const last = s.repoUrl.replace(/\.git$/, "").replace(/\/+$/, "").split("/").pop() || "";
+        return last.toLowerCase() === nameLower;
+      }) ?? null
+    );
+  }
+
+  async logCloneAttempt(data: InsertCloneAttempt): Promise<void> {
+    if (!db) return;
+    await db.insert(cloneAttempts).values(data);
+  }
+
+  async getAdminSettings(): Promise<AdminSettings> {
+    if (!db) return { id: 0, notifyAdminOnCloneDetected: true };
+    const [row] = await db.select().from(adminSettings).limit(1);
+    return row ?? { id: 0, notifyAdminOnCloneDetected: true };
+  }
 }
 
 class MemoryStorage implements IStorage {
@@ -267,6 +314,53 @@ class MemoryStorage implements IStorage {
     const domain = this.domains.find((d) => d.hostname === hostname && d.verified);
     if (!domain) return null;
     return this.sites.find((s) => s.id === domain.siteId) ?? null;
+  }
+
+  async createSite(data: Record<string, any>): Promise<Site> {
+    const site: Site = {
+      id: this.nextSiteId++,
+      accountId: data.accountId,
+      name: data.name,
+      subdomain: data.subdomain,
+      templateId: data.templateId ?? null,
+      repoUrl: data.repoUrl ?? null,
+      repoOwner: data.repoOwner ?? null,
+      isFork: data.isFork ?? false,
+      verificationStatus: data.verificationStatus ?? "pending",
+      whatsappGroupLink: data.whatsappGroupLink ?? null,
+      channelLink: data.channelLink ?? null,
+      messageTemplates: data.messageTemplates ?? null,
+      status: data.status ?? "active",
+      createdAt: new Date(),
+    };
+    this.sites.push(site);
+    return site;
+  }
+
+  async getSitesByAccount(accountId: number): Promise<Site[]> {
+    return this.sites.filter((s) => s.accountId === accountId);
+  }
+
+  async findConflictingSite(canonicalOwner: string, canonicalName: string, excludeAccountId: number): Promise<Site | null> {
+    const nameLower = canonicalName.toLowerCase();
+    return (
+      this.sites.find((s) => {
+        if (s.accountId === excludeAccountId) return false;
+        if (s.repoOwner !== canonicalOwner) return false;
+        if (!s.repoUrl) return false;
+        const last = s.repoUrl.replace(/\.git$/, "").replace(/\/+$/, "").split("/").pop() || "";
+        return last.toLowerCase() === nameLower;
+      }) ?? null
+    );
+  }
+
+  private cloneAttempts: any[] = [];
+  async logCloneAttempt(data: InsertCloneAttempt): Promise<void> {
+    this.cloneAttempts.push({ ...data, id: this.cloneAttempts.length + 1, createdAt: new Date() });
+  }
+
+  async getAdminSettings(): Promise<AdminSettings> {
+    return { id: 0, notifyAdminOnCloneDetected: true };
   }
 
   /** Dev-only helper: seed a fake site (and optionally a verified custom

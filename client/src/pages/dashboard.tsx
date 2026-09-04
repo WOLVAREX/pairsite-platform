@@ -3,7 +3,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { apiRequest, getQueryFn } from "@/lib/queryClient";
 import type { AuthUser, Site } from "@shared/schema";
+import type { SiteTemplate } from "@shared/templates";
 import { DashboardLayout, type DashboardTab } from "@/components/dashboard-layout";
+import { getTemplateById } from "@shared/templates";
 import {
   Bot,
   Plus,
@@ -135,6 +137,11 @@ function SitesGrid({ sites }: { sites: Site[] }) {
                 <Bot className="w-4 h-4 text-green-400" />
               </div>
               <p className="text-white font-mono font-medium text-sm truncate">{site.name}</p>
+              <span
+                className="w-2.5 h-2.5 rounded-full shrink-0"
+                style={{ backgroundColor: getTemplateById(site.templateId).swatchHex }}
+                title={getTemplateById(site.templateId).name}
+              />
             </div>
             <StatusBadge status={site.verificationStatus} />
           </div>
@@ -223,9 +230,18 @@ function CreateSiteTab({ onCreated }: { onCreated: () => void }) {
   const [subdomain, setSubdomain] = useState("");
   const [repoUrl, setRepoUrl] = useState("");
   const [whatsappGroupLink, setWhatsappGroupLink] = useState("");
+  const [templateId, setTemplateId] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const subdomainStatus = useSubdomainCheck(subdomain);
+  const { data: templates = [] } = useQuery<SiteTemplate[]>({ queryKey: ["/api/templates"] });
+
+  useEffect(() => {
+    if (templateId === null && templates.length > 0) {
+      const def = templates.find((t) => t.isDefault) ?? templates[0];
+      setTemplateId(def.id);
+    }
+  }, [templates, templateId]);
 
   const createSite = useMutation({
     mutationFn: async () => {
@@ -234,6 +250,7 @@ function CreateSiteTab({ onCreated }: { onCreated: () => void }) {
         subdomain,
         repoUrl,
         whatsappGroupLink: whatsappGroupLink || undefined,
+        templateId: templateId ?? undefined,
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -317,6 +334,24 @@ function CreateSiteTab({ onCreated }: { onCreated: () => void }) {
                 data-testid="input-site-repo"
                 className="w-full bg-black/50 border border-gray-800/50 rounded-lg px-4 py-3 text-white font-mono text-sm placeholder-gray-700 focus:outline-none focus:border-green-500/50 transition-colors"
               />
+            </div>
+            <div>
+              <label className="text-gray-400 font-mono text-xs uppercase tracking-wider mb-2 block">Theme</label>
+              <div className="flex items-center gap-3 flex-wrap">
+                {templates.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setTemplateId(t.id)}
+                    data-testid={`button-template-${t.key}`}
+                    title={t.name}
+                    className={`w-9 h-9 rounded-full border-2 transition-all ${
+                      templateId === t.id ? "border-white scale-110" : "border-transparent opacity-60 hover:opacity-100"
+                    }`}
+                    style={{ backgroundColor: t.swatchHex }}
+                  />
+                ))}
+              </div>
             </div>
             <div>
               <label className="text-gray-400 font-mono text-xs uppercase tracking-wider mb-2 block">

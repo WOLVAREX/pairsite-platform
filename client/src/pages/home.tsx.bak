@@ -28,7 +28,6 @@ import {
 } from "lucide-react";
 import { Link } from "wouter";
 import { SiWhatsapp } from "react-icons/si";
-import { getTemplateById } from "@shared/templates";
 
 interface SiteLink {
   key: string;
@@ -302,13 +301,8 @@ export default function Home({ site }: { site: Site }) {
       .replace(/[^A-Z0-9]+/g, "-")
       .replace(/^-+|-+$/g, "") || "PAIRSITE";
 
-  const template = getTemplateById(site.templateId);
-
   return (
-    <div
-      className="min-h-screen app-shell text-white relative overflow-hidden"
-      style={template.hueRotate !== 0 ? { filter: `hue-rotate(${template.hueRotate}deg)` } : undefined}
-    >
+    <div className="min-h-screen app-shell text-white relative overflow-hidden">
       <div className="neon-bg" />
 
       <div className="relative z-10 max-w-6xl mx-auto px-3 sm:px-6 py-4 sm:py-6">

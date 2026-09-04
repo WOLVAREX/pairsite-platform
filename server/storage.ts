@@ -32,6 +32,7 @@ export interface IStorage {
     createdAt: Date;
     linkedAt?: Date | null;
     terminatedAt?: Date | null;
+    siteId?: number | null;
   }): Promise<void>;
   getDbAnalytics(): Promise<{
     connected: number;
@@ -63,6 +64,7 @@ class DatabaseStorage implements IStorage {
     createdAt: Date;
     linkedAt?: Date | null;
     terminatedAt?: Date | null;
+    siteId?: number | null;
   }): Promise<void> {
     if (!db) return;
     try {
@@ -89,6 +91,7 @@ class DatabaseStorage implements IStorage {
           createdAt: data.createdAt,
           linkedAt: data.linkedAt ?? null,
           terminatedAt: data.terminatedAt ?? null,
+          siteId: data.siteId ?? null,
         });
       }
     } catch (err) {

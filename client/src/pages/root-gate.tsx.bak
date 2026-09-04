@@ -2,11 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import Landing from "@/pages/landing";
 import Home from "@/pages/home";
-import type { Site } from "@shared/schema";
 
 interface TenantResponse {
   context: "platform" | "tenant";
-  site: Site | null;
+  site: unknown;
 }
 
 export default function RootGate() {
@@ -25,8 +24,8 @@ export default function RootGate() {
   // On a developer's subdomain or verified custom domain, show their pair
   // site. Otherwise (the apex platform domain, or an unresolved host) show
   // the marketing landing page.
-  if (data?.context === "tenant" && data.site) {
-    return <Home site={data.site} />;
+  if (data?.context === "tenant") {
+    return <Home />;
   }
   return <Landing />;
 }

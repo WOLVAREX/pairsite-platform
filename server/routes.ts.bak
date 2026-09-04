@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import passport from "passport";
-import { createSessionSchema, updateQuickLinkSchema, signupSchema, loginSchema } from "@shared/schema";
+import { createSessionSchema, updateQuickLinkSchema, signupSchema, loginSchema, createSiteSchema } from "@shared/schema";
 import {
   createWhatsAppSession,
   getSessionStatus,
@@ -12,7 +12,9 @@ import {
   getAnalytics,
 } from "./whatsapp";
 import { storage } from "./storage";
-import { hashPassword } from "./auth";
+import { hashPassword, requireAuth } from "./auth";
+import { parseRepoUrl, fetchRepoInfo, canonicalIdentity, RepoNotFoundError, GitHubApiError } from "./github";
+import { sendCloneAttemptEmails } from "./email";
 import { log } from "./index";
 
 export async function registerRoutes(
@@ -158,6 +160,112 @@ export async function registerRoutes(
     );
   }
 
+  app.get("/api/sites/check-subdomain", async (req, res) => {
+    const subdomain = String(req.query.subdomain || "").toLowerCase();
+    if (!subdomain || !/^[a-z0-9-]+$/.test(subdomain)) {
+      return res.status(400).json({ error: "Invalid subdomain format" });
+    }
+    const existing = await storage.getSiteBySubdomain(subdomain);
+    return res.json({ available: !existing });
+  });
+
+  app.get("/api/sites", requireAuth, async (req, res) => {
+    const mySites = await storage.getSitesByAccount(req.user!.id);
+    return res.json(mySites);
+  });
+
+  app.post("/api/sites", requireAuth, async (req, res) => {
+    try {
+      const parsed = createSiteSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid request", details: parsed.error.flatten() });
+      }
+      const { name, subdomain, templateId, repoUrl, whatsappGroupLink, channelLink } = parsed.data;
+      const account = req.user!;
+
+      if (!account.githubUsername) {
+        return res.status(400).json({ error: "Connect your GitHub account before creating a site" });
+      }
+
+      const existingSubdomain = await storage.getSiteBySubdomain(subdomain.toLowerCase());
+      if (existingSubdomain) {
+        return res.status(409).json({ error: "That subdomain is already taken" });
+      }
+
+      const parsedRepo = parseRepoUrl(repoUrl);
+      if (!parsedRepo) {
+        return res.status(400).json({ error: "That doesn't look like a valid GitHub repository URL" });
+      }
+
+      let info;
+      try {
+        info = await fetchRepoInfo(parsedRepo.owner, parsedRepo.repo);
+      } catch (err) {
+        if (err instanceof RepoNotFoundError) {
+          return res.status(404).json({ error: "GitHub repository not found" });
+        }
+        if (err instanceof GitHubApiError) {
+          log(`GitHub API error during site creation: ${err.message}`, "sites");
+          return res.status(502).json({ error: "Could not verify the repository right now. Please try again shortly." });
+        }
+        throw err;
+      }
+
+      if (info.owner.toLowerCase() !== account.githubUsername.toLowerCase()) {
+        return res.status(403).json({ error: "You can only register a GitHub repository you own" });
+      }
+
+      const canonical = canonicalIdentity(info);
+      const conflict = await storage.findConflictingSite(canonical.owner, canonical.name, account.id);
+
+      if (conflict) {
+        await storage.logCloneAttempt({
+          attemptedRepoUrl: repoUrl,
+          attemptedByAccountId: account.id,
+          matchedSiteId: conflict.id,
+          originalOwnerNotified: false,
+          adminNotified: false,
+        });
+
+        const originalOwner = await storage.getAccountById(conflict.accountId);
+        const adminSettings = await storage.getAdminSettings();
+
+        sendCloneAttemptEmails({
+          originalOwnerEmail: originalOwner?.email,
+          notifyOriginalOwner: originalOwner?.notifyOnCloneDetected ?? true,
+          adminEmail: process.env.ADMIN_EMAIL,
+          notifyAdmin: adminSettings.notifyAdminOnCloneDetected,
+          attemptedRepoUrl: repoUrl,
+          attemptedByEmail: account.email,
+          originalSiteName: conflict.name,
+        }).catch((err) => log(`Clone-attempt email error: ${err.message}`, "email"));
+
+        return res.status(403).json({
+          error: "This repository (or its original) is already registered by another developer on this platform",
+        });
+      }
+
+      const site = await storage.createSite({
+        accountId: account.id,
+        name,
+        subdomain: subdomain.toLowerCase(),
+        templateId: templateId ?? null,
+        repoUrl: `https://github.com/${canonical.owner}/${canonical.name}`,
+        repoOwner: canonical.owner,
+        isFork: info.isFork,
+        verificationStatus: "verified",
+        whatsappGroupLink: whatsappGroupLink ?? null,
+        channelLink: channelLink ?? null,
+        status: "active",
+      });
+
+      return res.status(201).json(site);
+    } catch (err: any) {
+      log(`Site creation error: ${err.message}`, "sites");
+      return res.status(500).json({ error: err.message || "Internal server error" });
+    }
+  });
+
   app.get("/api/tenant/current", (req, res) => {
     if (req.tenantSite === undefined) {
       return res.json({ context: "platform", site: null });
@@ -198,7 +306,7 @@ export async function registerRoutes(
 
       log(`Creating ${method} session${phoneNumber ? ` for ${phoneNumber}` : ""} using Server ${pairServer || 1}`, "whatsapp");
 
-      const session = await createWhatsAppSession(method, phoneNumber, pairServer);
+      const session = await createWhatsAppSession(method, phoneNumber, pairServer, undefined, req.tenantSite?.id ?? null);
 
       return res.json({
         sessionId: session.sessionId,

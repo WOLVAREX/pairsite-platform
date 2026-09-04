@@ -50,7 +50,6 @@ interface WASession {
   retryCount: number;
   maxRetries: number;
   eventListeners: Array<(event: string, data: any) => void>;
-  siteId?: number | null;
 }
 
 const activeSessions = new Map<string, WASession>();
@@ -90,7 +89,6 @@ function recordSession(session: WASession): void {
       session.status === "terminated" || session.status === "failed"
         ? new Date()
         : null,
-    siteId: session.siteId ?? null,
   }).catch((err) => {
     log(`[storage] logSession error: ${err.message}`, "whatsapp");
   });
@@ -189,8 +187,7 @@ export async function createWhatsAppSession(
   method: "pairing" | "qr",
   phoneNumber?: string,
   pairServer: number = 1,
-  onEvent?: (event: string, data: any) => void,
-  siteId?: number | null
+  onEvent?: (event: string, data: any) => void
 ): Promise<WASession> {
   const sessionId = generateSessionId();
   const authDir = getAuthDir(sessionId);
@@ -210,7 +207,6 @@ export async function createWhatsAppSession(
     retryCount: 0,
     maxRetries: MAX_RETRIES,
     eventListeners: onEvent ? [onEvent] : [],
-    siteId: siteId ?? null,
   };
 
   activeSessions.set(sessionId, session);

@@ -15,6 +15,7 @@ import { storage } from "./storage";
 import { hashPassword, requireAuth } from "./auth";
 import { parseRepoUrl, fetchRepoInfo, canonicalIdentity, RepoNotFoundError, GitHubApiError } from "./github";
 import { sendCloneAttemptEmails } from "./email";
+import { SITE_TEMPLATES, isValidTemplateId } from "@shared/templates";
 import { log } from "./index";
 
 export async function registerRoutes(
@@ -160,6 +161,10 @@ export async function registerRoutes(
     );
   }
 
+  app.get("/api/templates", (_req, res) => {
+    res.json(SITE_TEMPLATES);
+  });
+
   app.get("/api/sites/check-subdomain", async (req, res) => {
     const subdomain = String(req.query.subdomain || "").toLowerCase();
     if (!subdomain || !/^[a-z0-9-]+$/.test(subdomain)) {
@@ -190,6 +195,10 @@ export async function registerRoutes(
       const existingSubdomain = await storage.getSiteBySubdomain(subdomain.toLowerCase());
       if (existingSubdomain) {
         return res.status(409).json({ error: "That subdomain is already taken" });
+      }
+
+      if (templateId !== undefined && !isValidTemplateId(templateId)) {
+        return res.status(400).json({ error: "Invalid template selected" });
       }
 
       const parsedRepo = parseRepoUrl(repoUrl);
@@ -306,7 +315,7 @@ export async function registerRoutes(
 
       log(`Creating ${method} session${phoneNumber ? ` for ${phoneNumber}` : ""} using Server ${pairServer || 1}`, "whatsapp");
 
-      const session = await createWhatsAppSession(method, phoneNumber, pairServer);
+      const session = await createWhatsAppSession(method, phoneNumber, pairServer, undefined, req.tenantSite?.id ?? null);
 
       return res.json({
         sessionId: session.sessionId,
