@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useLocation, Link } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { LogIn, Loader2, AlertCircle, Github } from "lucide-react";
+import { SiGoogle } from "react-icons/si";
 
 export default function LoginPage() {
   const [, setLocation] = useLocation();
@@ -90,6 +91,13 @@ export default function LoginPage() {
           <div className="my-5 flex items-center gap-3 text-gray-700 font-mono text-[10px] uppercase tracking-wider">
             <span className="h-px flex-1 bg-gray-800" /> or <span className="h-px flex-1 bg-gray-800" />
           </div>
+          <a
+            href="/api/auth/google"
+            data-testid="button-login-google"
+            className="mb-2 flex w-full items-center justify-center gap-2 rounded-lg border border-gray-800 px-4 py-3 font-mono text-sm text-gray-300 transition-colors hover:border-green-500/40 hover:text-white"
+          >
+            <SiGoogle className="h-4 w-4" /> Continue with Google
+          </a>
           <a
             href="/api/auth/github"
             data-testid="button-login-github"

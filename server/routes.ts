@@ -175,6 +175,8 @@ export async function registerRoutes(
       passport.authenticate("google", { failureRedirect: "/login?error=google" }),
       (_req, res) => res.redirect("/dashboard")
     );
+  } else {
+    app.get("/api/auth/google", (_req, res) => res.status(503).json({ error: "Google sign-in is not configured" }));
   }
 
   if (process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET) {
