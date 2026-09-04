@@ -23,6 +23,10 @@ import { eq, desc, count } from "drizzle-orm";
 import crypto from "node:crypto";
 import { resolveTxt } from "node:dns/promises";
 
+function paystackSecret(): string | undefined {
+  return process.env.PAYSTACK_SECRET_KEY || process.env.PAYSTACK_LIVE_KEY;
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -485,10 +489,10 @@ export async function registerRoutes(
   });
 
   app.post("/api/billing/initialize", requireAuth, async (req, res) => {
-    if (!db || !process.env.PAYSTACK_SECRET_KEY) return res.status(503).json({ error: "Paystack is not configured" });
+    if (!db || !paystackSecret()) return res.status(503).json({ error: "Paystack is not configured" });
     const settings = await storage.getAdminSettings();
     const reference = `PS_${Date.now()}_${crypto.randomBytes(5).toString("hex")}`;
-    const response = await fetch("https://api.paystack.co/transaction/initialize", { method: "POST", headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`, "Content-Type": "application/json" }, body: JSON.stringify({ email: req.user!.email, amount: settings.priceMinor, currency: settings.currency, reference, callback_url: `${process.env.PUBLIC_URL || "https://pairsite.space"}/dashboard`, metadata: { accountId: req.user!.id, purpose: "pair_site" } }) });
+    const response = await fetch("https://api.paystack.co/transaction/initialize", { method: "POST", headers: { Authorization: `Bearer ${paystackSecret()}`, "Content-Type": "application/json" }, body: JSON.stringify({ email: req.user!.email, amount: settings.priceMinor, currency: settings.currency, reference, callback_url: `${process.env.PUBLIC_URL || "https://pairsite.space"}/dashboard`, metadata: { accountId: req.user!.id, purpose: "pair_site" } }) });
     const result: any = await response.json();
     if (!response.ok || !result.status) return res.status(502).json({ error: result.message || "Could not initialize payment" });
     await db.insert(payments).values({ accountId: req.user!.id, reference, amountMinor: settings.priceMinor, currency: settings.currency, status: "initialized", purpose: "pair_site" });
@@ -496,10 +500,10 @@ export async function registerRoutes(
   });
 
   app.get("/api/billing/verify/:reference", requireAuth, async (req, res) => {
-    if (!db || !process.env.PAYSTACK_SECRET_KEY) return res.status(503).json({ error: "Paystack is not configured" });
+    if (!db || !paystackSecret()) return res.status(503).json({ error: "Paystack is not configured" });
     const [payment] = await db.select().from(payments).where(eq(payments.reference, String(req.params.reference))).limit(1);
     if (!payment || payment.accountId !== req.user!.id) return res.status(404).json({ error: "Payment not found" });
-    const response = await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(payment.reference)}`, { headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` } });
+    const response = await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(payment.reference)}`, { headers: { Authorization: `Bearer ${paystackSecret()}` } });
     const result: any = await response.json();
     if (result.status && result.data?.status === "success") {
       await db.update(payments).set({ status: "success", paidAt: new Date(), metadata: result.data }).where(eq(payments.id, payment.id));
@@ -510,7 +514,7 @@ export async function registerRoutes(
 
   app.post("/api/billing/webhook", async (req, res) => {
     const signature = req.headers["x-paystack-signature"];
-    const expected = process.env.PAYSTACK_SECRET_KEY ? crypto.createHmac("sha512", process.env.PAYSTACK_SECRET_KEY).update(JSON.stringify(req.body)).digest("hex") : "";
+    const expected = paystackSecret() ? crypto.createHmac("sha512", paystackSecret()!).update(JSON.stringify(req.body)).digest("hex") : "";
     if (!signature || signature !== expected) return res.status(401).json({ error: "Invalid signature" });
     if (db && req.body?.event === "charge.success" && req.body.data?.reference) {
       const [payment] = await db.select().from(payments).where(eq(payments.reference, req.body.data.reference)).limit(1);
