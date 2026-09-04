@@ -50,6 +50,7 @@ export interface IStorage {
   getAccountByGithubId(githubId: string): Promise<Account | null>;
   updateAccount(id: number, data: Partial<Account>): Promise<Account | null>;
   getSiteById(id: number): Promise<Site | null>;
+  deleteSite(id: number): Promise<boolean>;
   updateSite(id: number, data: Partial<Site>): Promise<Site | null>;
   getSiteBySubdomain(subdomain: string): Promise<Site | null>;
   getVerifiedSiteByHostname(hostname: string): Promise<Site | null>;
@@ -214,6 +215,13 @@ class DatabaseStorage implements IStorage {
     return site ?? null;
   }
 
+  async deleteSite(id: number): Promise<boolean> {
+    if (!db) return false;
+    await db.delete(domains).where(eq(domains.siteId, id));
+    const deleted = await db.delete(sites).where(eq(sites.id, id)).returning({ id: sites.id });
+    return deleted.length > 0;
+  }
+
   async updateSite(id: number, data: Partial<Site>): Promise<Site | null> {
     if (!db) return null;
     const [updated] = await db.update(sites).set(data as any).where(eq(sites.id, id)).returning();
@@ -348,6 +356,14 @@ class MemoryStorage implements IStorage {
 
   async getSiteById(id: number): Promise<Site | null> {
     return this.sites.find((site) => site.id === id) ?? null;
+  }
+
+  async deleteSite(id: number): Promise<boolean> {
+    const index = this.sites.findIndex((site) => site.id === id);
+    if (index < 0) return false;
+    this.sites.splice(index, 1);
+    this.domains = this.domains.filter((domain) => domain.siteId !== id);
+    return true;
   }
 
   async updateSite(id: number, data: Partial<Site>): Promise<Site | null> {

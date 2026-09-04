@@ -221,7 +221,7 @@ export default function Analytics() {
       <div className="relative z-10 max-w-6xl mx-auto px-3 sm:px-6 py-6 sm:py-10">
         <div className="flex items-center justify-between mb-8 sm:mb-10">
           <div className="flex items-center gap-4">
-            <Link href="/">
+            <Link href="/dashboard">
               <button
                 data-testid="button-back"
                 className="flex items-center gap-2 px-3 py-2 rounded-lg bg-black/40 border border-gray-800/50 text-gray-400 hover:text-green-400 hover:border-green-500/30 transition-all font-mono text-xs"

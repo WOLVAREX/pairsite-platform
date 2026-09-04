@@ -22,6 +22,7 @@ import {
   ShieldCheck,
   ArrowRight,
   CreditCard,
+  Trash2,
 } from "lucide-react";
 
 function useAuthUser() {
@@ -127,6 +128,11 @@ function OverviewTab({ user, sites, onNavigate }: { user: AuthUser; sites: Site[
 }
 
 function SitesGrid({ sites }: { sites: Site[] }) {
+  const queryClient = useQueryClient();
+  const deleteSite = useMutation({
+    mutationFn: (id: number) => apiRequest("DELETE", `/api/sites/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/sites"] }),
+  });
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
       {sites.map((site) => (
@@ -147,7 +153,7 @@ function SitesGrid({ sites }: { sites: Site[] }) {
                 title={getTemplateById(site.templateId).name}
               />
             </div>
-            <StatusBadge status={site.verificationStatus} />
+            <div className="flex items-center gap-2"><StatusBadge status={site.verificationStatus} /><button type="button" data-testid={`button-delete-site-${site.subdomain}`} onClick={() => { if (window.confirm(`Delete ${site.name}? This cannot be undone.`)) deleteSite.mutate(site.id); }} disabled={deleteSite.isPending} className="rounded-lg p-1.5 text-gray-600 hover:bg-red-500/10 hover:text-red-400 disabled:opacity-40" title="Delete pair site"><Trash2 className="h-3.5 w-3.5" /></button></div>
           </div>
           <p className="text-gray-500 font-mono text-xs flex items-center gap-1.5 mb-1.5">
             <Globe className="w-3 h-3 shrink-0" /> {site.subdomain}.pairsite.space

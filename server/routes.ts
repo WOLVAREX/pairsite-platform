@@ -189,6 +189,13 @@ export async function registerRoutes(
     return res.json(mySites);
   });
 
+  app.delete("/api/sites/:id", requireAuth, async (req, res) => {
+    const site = await storage.getSiteById(Number(req.params.id));
+    if (!site || site.accountId !== req.user!.id) return res.status(404).json({ error: "Site not found" });
+    const deleted = await storage.deleteSite(site.id);
+    return res.json({ success: deleted });
+  });
+
   app.get("/api/domains", requireAuth, async (req, res) => {
     if (!db) return res.json([]);
     const mine = await db.select({ domain: domains }).from(domains).innerJoin(sites, eq(domains.siteId, sites.id)).where(eq(sites.accountId, req.user!.id));
