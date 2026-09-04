@@ -47,6 +47,8 @@ export interface IStorage {
   getAccountByGoogleId(googleId: string): Promise<Account | null>;
   getAccountByGithubId(githubId: string): Promise<Account | null>;
   updateAccount(id: number, data: Partial<Account>): Promise<Account | null>;
+  getSiteById(id: number): Promise<Site | null>;
+  updateSite(id: number, data: Partial<Site>): Promise<Site | null>;
   getSiteBySubdomain(subdomain: string): Promise<Site | null>;
   getVerifiedSiteByHostname(hostname: string): Promise<Site | null>;
   createSite(data: Record<string, any>): Promise<Site>;
@@ -192,6 +194,18 @@ class DatabaseStorage implements IStorage {
     return updated ?? null;
   }
 
+  async getSiteById(id: number): Promise<Site | null> {
+    if (!db) return null;
+    const [site] = await db.select().from(sites).where(eq(sites.id, id)).limit(1);
+    return site ?? null;
+  }
+
+  async updateSite(id: number, data: Partial<Site>): Promise<Site | null> {
+    if (!db) return null;
+    const [updated] = await db.update(sites).set(data as any).where(eq(sites.id, id)).returning();
+    return updated ?? null;
+  }
+
   async getSiteBySubdomain(subdomain: string): Promise<Site | null> {
     if (!db) return null;
     const [site] = await db.select().from(sites).where(eq(sites.subdomain, subdomain)).limit(1);
@@ -307,6 +321,17 @@ class MemoryStorage implements IStorage {
     if (idx === -1) return null;
     this.accounts[idx] = { ...this.accounts[idx], ...data };
     return this.accounts[idx];
+  }
+
+  async getSiteById(id: number): Promise<Site | null> {
+    return this.sites.find((site) => site.id === id) ?? null;
+  }
+
+  async updateSite(id: number, data: Partial<Site>): Promise<Site | null> {
+    const idx = this.sites.findIndex((site) => site.id === id);
+    if (idx === -1) return null;
+    this.sites[idx] = { ...this.sites[idx], ...data };
+    return this.sites[idx];
   }
 
   async getSiteBySubdomain(subdomain: string): Promise<Site | null> {

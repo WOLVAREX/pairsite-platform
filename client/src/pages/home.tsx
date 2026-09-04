@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { SessionResponse, SessionStatus, Site } from "@shared/schema";
+import { getBotConfig, type SessionResponse, type SessionStatus, type Site } from "@shared/schema";
 import {
   ArrowUpRight,
   Copy,
@@ -296,11 +296,7 @@ export default function Home({ site }: { site: Site }) {
     return code;
   };
 
-  const sessionPrefix =
-    site.name
-      .toUpperCase()
-      .replace(/[^A-Z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "") || "PAIRSITE";
+  const sessionPrefix = getBotConfig(site).sessionPrefix;
 
   const template = getTemplateById(site.templateId);
 
@@ -595,7 +591,7 @@ export default function Home({ site }: { site: Site }) {
                         </label>
                         <button
                           data-testid="button-copy-credentials"
-                          onClick={() => handleCopy(`${sessionPrefix}:~${displayCredentials}`, "creds")}
+                          onClick={() => handleCopy(`${sessionPrefix}${displayCredentials}`, "creds")}
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-500/10 border border-green-500/30 font-mono text-xs text-green-400 transition-all hover:bg-green-500/20"
                         >
                           {copiedCreds ? (
@@ -613,11 +609,11 @@ export default function Home({ site }: { site: Site }) {
                       </div>
                       <div
                         className="p-3 bg-black/50 rounded-lg border border-green-500/20 cursor-pointer transition-all hover:border-green-500/40"
-                        onClick={() => handleCopy(`${sessionPrefix}:~${displayCredentials}`, "creds")}
+                        onClick={() => handleCopy(`${sessionPrefix}${displayCredentials}`, "creds")}
                         data-testid="div-credentials"
                       >
                         <code className="font-mono text-xs text-green-400/80 break-all leading-relaxed" data-testid="text-credentials">
-                          {sessionPrefix}:~{displayCredentials}
+                          {sessionPrefix}{displayCredentials}
                         </code>
                       </div>
                       <p className="text-gray-600 text-[10px] font-mono mt-2">

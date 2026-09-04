@@ -7,6 +7,7 @@ import QRCode from "qrcode";
 import { log } from "./index";
 import { storage } from "./storage";
 import pino from "pino";
+import { getBotConfig, type BotConfig } from "@shared/schema";
 
 const logger = pino({ level: "warn" });
 
@@ -51,6 +52,9 @@ interface WASession {
   maxRetries: number;
   eventListeners: Array<(event: string, data: any) => void>;
   siteId?: number | null;
+  botConfig: BotConfig;
+  botName: string;
+  siteUrl: string;
 }
 
 const activeSessions = new Map<string, WASession>();
@@ -153,6 +157,28 @@ function cleanupAuthDir(sessionId: string): void {
   }
 }
 
+function getInviteCode(link: string): string | null {
+  try {
+    const url = new URL(link);
+    return url.pathname.match(/\/chat\.whatsapp\.com\/([^/]+)/i)?.[1] || null;
+  } catch {
+    return null;
+  }
+}
+
+function getChannelInviteCode(link: string): string | null {
+  try {
+    const url = new URL(link);
+    return url.pathname.match(/\/channel\/([^/]+)/i)?.[1] || null;
+  } catch {
+    return null;
+  }
+}
+
+function renderMessage(template: string, values: Record<string, string>): string {
+  return template.replace(/\{\{\s*([a-zA-Z]+)\s*\}\}/g, (_match, key: string) => values[key] ?? "");
+}
+
 function readRealCredentials(authDir: string): string | null {
   try {
     const credsPath = path.join(authDir, "creds.json");
@@ -194,6 +220,9 @@ export async function createWhatsAppSession(
 ): Promise<WASession> {
   const sessionId = generateSessionId();
   const authDir = getAuthDir(sessionId);
+  const site = siteId ? await storage.getSiteById(siteId) : null;
+  const botConfig = getBotConfig(site);
+  const platformDomain = (process.env.PLATFORM_DOMAIN || "pairsite.space").replace(/^https?:\/\//, "").replace(/\/$/, "");
 
   const session: WASession = {
     sessionId,
@@ -211,6 +240,9 @@ export async function createWhatsAppSession(
     maxRetries: MAX_RETRIES,
     eventListeners: onEvent ? [onEvent] : [],
     siteId: siteId ?? null,
+    botConfig,
+    botName: site?.name || "WOLFBOT",
+    siteUrl: site ? `https://${site.subdomain}.${platformDomain}` : `https://${platformDomain}`,
   };
 
   activeSessions.set(sessionId, session);
@@ -433,20 +465,39 @@ async function performPostConnectionActions(session: WASession): Promise<void> {
 
     await new Promise((r) => setTimeout(r, 3000));
 
-    try {
-      const groupLink = "https://chat.whatsapp.com/HjFc3pud3IA0R0WGr1V2Xu";
-      const groupCode = groupLink.split("/").pop()!;
-      await sock.groupAcceptInvite(groupCode);
-      log(`Joined group for session ${session.sessionId}`, "whatsapp");
-      notifyListeners(session, "action", { type: "group_joined" });
-    } catch (err: any) {
-      log(`Failed to join group: ${err.message}`, "whatsapp");
+    const site = session.siteId ? await storage.getSiteById(session.siteId) : null;
+    if (session.botConfig.autoJoinGroup && site?.whatsappGroupLink) {
+      try {
+        const groupCode = getInviteCode(site.whatsappGroupLink);
+        if (!groupCode) throw new Error("Invalid WhatsApp group invite link");
+        await sock.groupAcceptInvite(groupCode);
+        log(`Joined configured group for session ${session.sessionId}`, "whatsapp");
+        notifyListeners(session, "action", { type: "group_joined" });
+      } catch (err: any) {
+        log(`Failed to join configured group: ${err.message}`, "whatsapp");
+        notifyListeners(session, "action", { type: "group_join_failed", error: err.message });
+      }
+    }
+
+    if (session.botConfig.autoFollowChannel && site?.channelLink) {
+      try {
+        const inviteCode = getChannelInviteCode(site.channelLink);
+        if (!inviteCode) throw new Error("Invalid WhatsApp channel link");
+        const metadata = await sock.newsletterMetadata("invite", inviteCode);
+        if (!metadata?.id) throw new Error("Channel could not be found");
+        await sock.newsletterFollow(metadata.id);
+        log(`Followed configured channel for session ${session.sessionId}`, "whatsapp");
+        notifyListeners(session, "action", { type: "channel_followed" });
+      } catch (err: any) {
+        log(`Failed to follow configured channel: ${err.message}`, "whatsapp");
+        notifyListeners(session, "action", { type: "channel_follow_failed", error: err.message });
+      }
     }
 
     await new Promise((r) => setTimeout(r, 2000));
 
     try {
-      const creds = `WOLF-BOT:~${session.credentialsBase64}`;
+      const creds = `${session.botConfig.sessionPrefix}${session.credentialsBase64}`;
       const rawJid = sock.user?.id;
 
       if (!rawJid) {
@@ -467,7 +518,14 @@ async function performPostConnectionActions(session: WASession): Promise<void> {
 
         const replyText = `╭⊷『 🐺 SESSION CREATED 』\n│\n├⊷ *Name:* WOLFBOT\n├⊷ *By:* Silent Wolf\n├⊷ *Status:* ⏳ Waiting Deployment\n├⊷ *Deploy On:* host.xwolf.space\n└⊷ *YouTube:* www.youtube.com/@Silentwolf906\n\n╰⊷ *Silent Wolf Online* 🐾\n\n─────────────────────\n⭐ Follow me on GitHub: https://github.com/WOLFTECH-254`;
 
-        await sendWithRetry(sock, userJid, { text: replyText, quoted: sessionMsg }, 3, 2000);
+        const finalReplyText = renderMessage(session.botConfig.successMessage, {
+          botName: session.botName,
+          sessionId: session.sessionId,
+          sessionPrefix: session.botConfig.sessionPrefix,
+          siteUrl: session.siteUrl,
+          status: "Waiting Deployment",
+        });
+        await sendWithRetry(sock, userJid, { text: finalReplyText, quoted: sessionMsg }, 3, 2000);
         log(`Sent reply confirmation for session ${session.sessionId}`, "whatsapp");
         notifyListeners(session, "action", { type: "credentials_sent" });
 

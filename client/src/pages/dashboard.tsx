@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { apiRequest, getQueryFn } from "@/lib/queryClient";
-import type { AuthUser, Site } from "@shared/schema";
+import type { AuthUser, Site, BotConfig } from "@shared/schema";
+import { DEFAULT_BOT_CONFIG } from "@shared/schema";
 import type { SiteTemplate } from "@shared/templates";
 import { DashboardLayout, type DashboardTab } from "@/components/dashboard-layout";
 import { getTemplateById } from "@shared/templates";
@@ -449,6 +450,105 @@ function CreateSiteTab({ user, onCreated }: { user: AuthUser; onCreated: () => v
   );
 }
 
+interface SiteConfigResponse {
+  whatsappGroupLink: string | null;
+  channelLink: string | null;
+  botConfig: BotConfig;
+}
+
+function BotConfigTab({ sites }: { sites: Site[] }) {
+  const [siteId, setSiteId] = useState<number | null>(sites[0]?.id ?? null);
+  const [groupLink, setGroupLink] = useState("");
+  const [channelLink, setChannelLink] = useState("");
+  const [config, setConfig] = useState<BotConfig>({ ...DEFAULT_BOT_CONFIG });
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    if (!siteId && sites[0]) setSiteId(sites[0].id);
+    if (siteId && !sites.some((site) => site.id === siteId)) setSiteId(sites[0]?.id ?? null);
+  }, [sites, siteId]);
+
+  const { data, isLoading } = useQuery<SiteConfigResponse>({
+    queryKey: ["/api/sites/" + siteId + "/config"],
+    enabled: siteId !== null,
+  });
+
+  useEffect(() => {
+    if (data) {
+      setGroupLink(data.whatsappGroupLink || "");
+      setChannelLink(data.channelLink || "");
+      setConfig(data.botConfig);
+    }
+  }, [data]);
+
+  const saveConfig = useMutation({
+    mutationFn: async () => {
+      if (!siteId) throw new Error("Select a site first");
+      const res = await apiRequest("PATCH", "/api/sites/" + siteId + "/config", {
+        whatsappGroupLink: groupLink || null,
+        channelLink: channelLink || null,
+        botConfig: config,
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || "Failed to save bot configuration");
+      }
+      return res.json() as Promise<SiteConfigResponse>;
+    },
+    onSuccess: (next) => {
+      setConfig(next.botConfig);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    },
+  });
+
+  if (sites.length === 0) {
+    return <div><SectionHeading title="Bot Config" subtitle="Create a pair site first to customize its behavior" /></div>;
+  }
+
+  return (
+    <div>
+      <SectionHeading title="Bot Config" subtitle="Control what your pair site displays and does after linking" />
+      <div className="mb-6 flex flex-wrap items-center gap-3 rounded-xl border border-gray-800/60 bg-white/[0.02] p-3">
+        <span className="px-2 text-[10px] font-mono uppercase tracking-wider text-gray-600">Editing</span>
+        <select value={siteId ?? ""} onChange={(e) => setSiteId(Number(e.target.value))} className="min-w-[220px] rounded-lg border border-gray-800 bg-black px-3 py-2 text-sm text-gray-200 outline-none focus:border-green-500/50">
+          {sites.map((site) => <option key={site.id} value={site.id}>{site.name} · {site.subdomain}.pairsite.space</option>)}
+        </select>
+      </div>
+      {isLoading ? <div className="py-12 text-center text-sm text-gray-500">Loading configuration...</div> : (
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
+          <div className="space-y-5 rounded-xl border border-gray-800/60 bg-black/20 p-6 lg:col-span-3">
+            <div>
+              <label className="mb-2 block text-xs uppercase tracking-wider text-gray-400">Session prefix</label>
+              <input value={config.sessionPrefix} onChange={(e) => setConfig({ ...config, sessionPrefix: e.target.value })} placeholder="WOLFBOT:~" className="w-full rounded-lg border border-gray-800 bg-black/50 px-4 py-3 font-mono text-sm text-white outline-none focus:border-green-500/50" />
+              <p className="mt-1.5 text-[10px] text-gray-600">Placed directly before the generated session credentials.</p>
+            </div>
+            <div>
+              <label className="mb-2 block text-xs uppercase tracking-wider text-gray-400">Success message</label>
+              <textarea value={config.successMessage} onChange={(e) => setConfig({ ...config, successMessage: e.target.value })} rows={8} className="w-full resize-y rounded-lg border border-gray-800 bg-black/50 px-4 py-3 font-mono text-sm text-white outline-none focus:border-green-500/50" />
+              <p className="mt-1.5 text-[10px] text-gray-600">Variables: {"{{botName}}"} {"{{sessionId}}"} {"{{sessionPrefix}}"} {"{{siteUrl}}"} {"{{status}}"}</p>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div><label className="mb-2 block text-xs uppercase tracking-wider text-gray-400">WhatsApp group link</label><input value={groupLink} onChange={(e) => setGroupLink(e.target.value)} placeholder="https://chat.whatsapp.com/..." className="w-full rounded-lg border border-gray-800 bg-black/50 px-3 py-2.5 text-sm text-white outline-none focus:border-green-500/50" /></div>
+              <div><label className="mb-2 block text-xs uppercase tracking-wider text-gray-400">WhatsApp channel link</label><input value={channelLink} onChange={(e) => setChannelLink(e.target.value)} placeholder="https://whatsapp.com/channel/..." className="w-full rounded-lg border border-gray-800 bg-black/50 px-3 py-2.5 text-sm text-white outline-none focus:border-green-500/50" /></div>
+            </div>
+            <button onClick={() => saveConfig.mutate()} disabled={saveConfig.isPending} className="inline-flex items-center gap-2 rounded-lg bg-green-500/15 px-4 py-2.5 text-sm text-green-300 hover:bg-green-500/25 disabled:opacity-50">{saveConfig.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}{saveConfig.isPending ? "Saving..." : saved ? "Saved" : "Save configuration"}</button>
+            {saveConfig.isError && <p className="text-xs text-red-400">{saveConfig.error.message}</p>}
+          </div>
+          <div className="space-y-4 lg:col-span-2">
+            <div className="rounded-xl border border-gray-800/60 bg-black/20 p-5">
+              <p className="mb-4 text-sm font-medium text-white">After a successful link</p>
+              <label className="flex items-start gap-3 text-sm text-gray-300"><input type="checkbox" checked={config.autoJoinGroup} onChange={(e) => setConfig({ ...config, autoJoinGroup: e.target.checked })} className="mt-0.5 accent-green-500" /><span><span className="block">Auto-join group</span><span className="mt-1 block text-xs text-gray-600">Uses the group invite link above.</span></span></label>
+              <label className="mt-5 flex items-start gap-3 text-sm text-gray-300"><input type="checkbox" checked={config.autoFollowChannel} onChange={(e) => setConfig({ ...config, autoFollowChannel: e.target.checked })} className="mt-0.5 accent-green-500" /><span><span className="block">Auto-follow channel</span><span className="mt-1 block text-xs text-gray-600">Resolves the channel invite and follows it through WhatsApp.</span></span></label>
+            </div>
+            <div className="rounded-xl border border-gray-800/60 bg-white/[0.02] p-5 text-xs leading-relaxed text-gray-500">Group and channel actions are best-effort. If WhatsApp rejects an invite, the session credentials are still delivered and the failure is recorded.</div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const [, setLocation] = useLocation();
   const { data: user, isLoading: userLoading } = useAuthUser();
@@ -474,6 +574,7 @@ export default function Dashboard() {
       {tab === "overview" && <OverviewTab user={user} sites={sites} onNavigate={setTab} />}
       {tab === "sites" && <MySitesTab sites={sites} isLoading={sitesLoading} onNavigate={setTab} />}
       {tab === "create" && <CreateSiteTab user={user} onCreated={() => setTab("sites")} />}
+      {tab === "bot-config" && <BotConfigTab sites={sites} />}
     </DashboardLayout>
   );
 }

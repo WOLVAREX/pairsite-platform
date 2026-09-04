@@ -6,6 +6,7 @@ import type { AuthUser } from "@shared/schema";
 import {
   Bot,
   LayoutDashboard,
+  Settings2,
   LogOut,
   Menu,
   X,
@@ -34,6 +35,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: "overview", label: "Overview", icon: LayoutDashboard, available: true },
   { id: "sites", label: "My sites", icon: Bot, available: true },
   { id: "create", label: "Create site", icon: Plus, available: true },
+  { id: "bot-config", label: "Bot config", icon: Settings2, available: true },
 ];
 
 export function DashboardLayout({

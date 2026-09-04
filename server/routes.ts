@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import passport from "passport";
-import { createSessionSchema, updateQuickLinkSchema, signupSchema, loginSchema, createSiteSchema } from "@shared/schema";
+import { createSessionSchema, updateQuickLinkSchema, signupSchema, loginSchema, createSiteSchema, siteConfigSchema, getBotConfig } from "@shared/schema";
 import {
   createWhatsAppSession,
   getSessionStatus,
@@ -177,6 +177,38 @@ export async function registerRoutes(
   app.get("/api/sites", requireAuth, async (req, res) => {
     const mySites = await storage.getSitesByAccount(req.user!.id);
     return res.json(mySites);
+  });
+
+  app.get("/api/sites/:id/config", requireAuth, async (req, res) => {
+    const site = await storage.getSiteById(Number(req.params.id));
+    if (!site || site.accountId !== req.user!.id) return res.status(404).json({ error: "Site not found" });
+    return res.json({
+      whatsappGroupLink: site.whatsappGroupLink,
+      channelLink: site.channelLink,
+      botConfig: getBotConfig(site),
+    });
+  });
+
+  app.patch("/api/sites/:id/config", requireAuth, async (req, res) => {
+    try {
+      const site = await storage.getSiteById(Number(req.params.id));
+      if (!site || site.accountId !== req.user!.id) return res.status(404).json({ error: "Site not found" });
+      const parsed = siteConfigSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ error: "Invalid bot configuration", details: parsed.error.flatten() });
+      const updated = await storage.updateSite(site.id, {
+        whatsappGroupLink: parsed.data.whatsappGroupLink ?? null,
+        channelLink: parsed.data.channelLink ?? null,
+        messageTemplates: parsed.data.botConfig,
+      });
+      return res.json({
+        whatsappGroupLink: updated?.whatsappGroupLink ?? null,
+        channelLink: updated?.channelLink ?? null,
+        botConfig: getBotConfig(updated),
+      });
+    } catch (err: any) {
+      log(`Bot config update error: ${err.message}`, "sites");
+      return res.status(500).json({ error: "Failed to update bot configuration" });
+    }
   });
 
   app.post("/api/sites", requireAuth, async (req, res) => {

@@ -144,6 +144,45 @@ export const insertSiteSchema = createInsertSchema(sites).omit({ id: true, creat
 export type InsertSite = typeof insertSiteSchema._type;
 export type Site = typeof sites.$inferSelect;
 
+export interface BotConfig {
+  sessionPrefix: string;
+  successMessage: string;
+  autoJoinGroup: boolean;
+  autoFollowChannel: boolean;
+}
+
+export const DEFAULT_BOT_CONFIG: BotConfig = {
+  sessionPrefix: "WOLFBOT:~",
+  successMessage: "╭─〔 {{botName}} SESSION CREATED 〕\n│\n├─ Name: {{botName}}\n├─ Status: Waiting Deployment\n├─ Pair site: {{siteUrl}}\n└─ Session prefix: {{sessionPrefix}}\n\n╰─ Your session credentials are above.",
+  autoJoinGroup: true,
+  autoFollowChannel: true,
+};
+
+export function getBotConfig(site: Pick<Site, "messageTemplates"> | null | undefined): BotConfig {
+  const raw = site?.messageTemplates;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { ...DEFAULT_BOT_CONFIG };
+  const values = raw as Record<string, unknown>;
+  return {
+    sessionPrefix: typeof values.sessionPrefix === "string" && values.sessionPrefix.trim() ? values.sessionPrefix : DEFAULT_BOT_CONFIG.sessionPrefix,
+    successMessage: typeof values.successMessage === "string" && values.successMessage.trim() ? values.successMessage : DEFAULT_BOT_CONFIG.successMessage,
+    autoJoinGroup: typeof values.autoJoinGroup === "boolean" ? values.autoJoinGroup : DEFAULT_BOT_CONFIG.autoJoinGroup,
+    autoFollowChannel: typeof values.autoFollowChannel === "boolean" ? values.autoFollowChannel : DEFAULT_BOT_CONFIG.autoFollowChannel,
+  };
+}
+
+export const botConfigSchema = z.object({
+  sessionPrefix: z.string().trim().min(1).max(80),
+  successMessage: z.string().trim().min(1).max(2000),
+  autoJoinGroup: z.boolean(),
+  autoFollowChannel: z.boolean(),
+});
+
+export const siteConfigSchema = z.object({
+  whatsappGroupLink: z.string().url().nullable().optional(),
+  channelLink: z.string().url().nullable().optional(),
+  botConfig: botConfigSchema,
+});
+
 export const updateSiteSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   subdomain: z.string().min(1).max(63).optional(),

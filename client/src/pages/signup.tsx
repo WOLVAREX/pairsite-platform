@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation, Link } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
-import { UserPlus, Loader2, AlertCircle } from "lucide-react";
+import { UserPlus, Loader2, AlertCircle, Github } from "lucide-react";
 
 export default function Signup() {
   const [, setLocation] = useLocation();
@@ -88,6 +88,16 @@ export default function Signup() {
               {loading ? "Creating account..." : "Create Account"}
             </button>
           </form>
+          <div className="my-5 flex items-center gap-3 text-gray-700 font-mono text-[10px] uppercase tracking-wider">
+            <span className="h-px flex-1 bg-gray-800" /> or <span className="h-px flex-1 bg-gray-800" />
+          </div>
+          <a
+            href="/api/auth/github"
+            data-testid="button-signup-github"
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-800 px-4 py-3 font-mono text-sm text-gray-300 transition-colors hover:border-green-500/40 hover:text-white"
+          >
+            <Github className="h-4 w-4" /> Sign up with GitHub
+          </a>
         </div>
         <p className="text-center text-gray-500 font-mono text-xs mt-6">
           Already have an account?{" "}
