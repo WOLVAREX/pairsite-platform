@@ -121,6 +121,10 @@ import { resolveTenant } from "./tenant";
 const app = express();
 const httpServer = createServer(app);
 
+// Nginx/Cloudflare terminate HTTPS before forwarding requests to Node.
+// Trust the single local reverse-proxy hop so secure session cookies are set.
+app.set("trust proxy", 1);
+
 declare module "http" {
   interface IncomingMessage {
     rawBody: unknown;
