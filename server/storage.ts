@@ -271,9 +271,11 @@ class DatabaseStorage implements IStorage {
   }
 
   async getAdminSettings(): Promise<AdminSettings> {
-    if (!db) return { id: 0, notifyAdminOnCloneDetected: true };
+    if (!db) return { id: 0, notifyAdminOnCloneDetected: true, trialDays: 30, freeSiteLimit: 1, priceMinor: 10000, currency: "KES", defaultGroupInviteCode: null, defaultChannelJid: null };
     const [row] = await db.select().from(adminSettings).limit(1);
-    return row ?? { id: 0, notifyAdminOnCloneDetected: true };
+    if (row) return row;
+    const [created] = await db.insert(adminSettings).values({}).returning();
+    return created;
   }
 }
 
@@ -310,6 +312,11 @@ class MemoryStorage implements IStorage {
       githubUsername: data.githubUsername ?? null,
       plan: data.plan ?? "free",
       notifyOnCloneDetected: data.notifyOnCloneDetected ?? true,
+      trialStartedAt: data.trialStartedAt ?? new Date(),
+      trialEndsAt: data.trialEndsAt ?? new Date(Date.now() + 30 * 86400000),
+      siteLimitOverride: data.siteLimitOverride ?? null,
+      paidUntil: data.paidUntil ?? null,
+      siteCredits: data.siteCredits ?? 0,
       createdAt: new Date(),
     };
     this.accounts.push(account);
@@ -377,6 +384,7 @@ class MemoryStorage implements IStorage {
       channelJid: data.channelJid ?? null,
       messageTemplates: data.messageTemplates ?? null,
       status: data.status ?? "active",
+      expiresAt: data.expiresAt ?? null,
       createdAt: new Date(),
     };
     this.sites.push(site);
@@ -406,7 +414,7 @@ class MemoryStorage implements IStorage {
   }
 
   async getAdminSettings(): Promise<AdminSettings> {
-    return { id: 0, notifyAdminOnCloneDetected: true };
+    return { id: 0, notifyAdminOnCloneDetected: true, trialDays: 30, freeSiteLimit: 1, priceMinor: 10000, currency: "KES", defaultGroupInviteCode: null, defaultChannelJid: null };
   }
 
   /** Dev-only helper: seed a fake site (and optionally a verified custom
@@ -429,6 +437,7 @@ class MemoryStorage implements IStorage {
       channelJid: null,
       messageTemplates: null,
       status: "active",
+      expiresAt: null,
       createdAt: new Date(),
     };
     this.sites.push(site);

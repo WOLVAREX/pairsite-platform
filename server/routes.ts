@@ -17,6 +17,11 @@ import { parseRepoUrl, fetchRepoInfo, canonicalIdentity, RepoNotFoundError, GitH
 import { sendCloneAttemptEmails } from "./email";
 import { SITE_TEMPLATES, isValidTemplateId } from "@shared/templates";
 import { log } from "./index";
+import { db } from "./db";
+import { accounts, adminSettings, domains, payments, sites } from "@shared/schema";
+import { eq, desc, count } from "drizzle-orm";
+import crypto from "node:crypto";
+import { resolveTxt } from "node:dns/promises";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -179,6 +184,42 @@ export async function registerRoutes(
     return res.json(mySites);
   });
 
+  app.get("/api/domains", requireAuth, async (req, res) => {
+    if (!db) return res.json([]);
+    const mine = await db.select({ domain: domains }).from(domains).innerJoin(sites, eq(domains.siteId, sites.id)).where(eq(sites.accountId, req.user!.id));
+    return res.json(mine.map((row) => row.domain));
+  });
+
+  app.post("/api/domains", requireAuth, async (req, res) => {
+    if (!db) return res.status(503).json({ error: "Database not configured" });
+    const hostname = String(req.body?.hostname || "").toLowerCase().trim();
+    const siteId = Number(req.body?.siteId);
+    if (!hostname || !/^(?=.{4,255}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/i.test(hostname)) return res.status(400).json({ error: "Enter a valid domain name" });
+    const [site] = await db.select().from(sites).where(eq(sites.id, siteId)).limit(1);
+    if (!site || site.accountId !== req.user!.id) return res.status(404).json({ error: "Site not found" });
+    const token = `pairsite-${crypto.randomBytes(12).toString("hex")}`;
+    try {
+      const [domain] = await db.insert(domains).values({ siteId, hostname, verificationToken: token, verified: false, sslStatus: "pending" }).returning();
+      return res.status(201).json({ ...domain, dns: { type: "TXT", name: `_pairsite.${hostname}`, value: token } });
+    } catch (err: any) {
+      if (err.code === "23505") return res.status(409).json({ error: "That domain is already registered" });
+      throw err;
+    }
+  });
+
+  app.post("/api/domains/:id/verify", requireAuth, async (req, res) => {
+    if (!db) return res.status(503).json({ error: "Database not configured" });
+    const [row] = await db.select({ domain: domains }).from(domains).innerJoin(sites, eq(domains.siteId, sites.id)).where(eq(domains.id, Number(req.params.id))).limit(1);
+    if (!row || row.domain.siteId === null) return res.status(404).json({ error: "Domain not found" });
+    const [owner] = await db.select().from(sites).where(eq(sites.id, row.domain.siteId)).limit(1);
+    if (!owner || owner.accountId !== req.user!.id) return res.status(404).json({ error: "Domain not found" });
+    let records: string[][] = [];
+    try { records = await resolveTxt(`_pairsite.${row.domain.hostname}`); } catch { return res.status(400).json({ error: "Verification TXT record was not found yet" }); }
+    if (!records.flat().includes(row.domain.verificationToken)) return res.status(400).json({ error: "Verification TXT value does not match" });
+    const [updated] = await db.update(domains).set({ verified: true, sslStatus: "active" }).where(eq(domains.id, row.domain.id)).returning();
+    return res.json(updated);
+  });
+
   app.get("/api/sites/:id/config", requireAuth, async (req, res) => {
     const site = await storage.getSiteById(Number(req.params.id));
     if (!site || site.accountId !== req.user!.id) return res.status(404).json({ error: "Site not found" });
@@ -225,6 +266,20 @@ export async function registerRoutes(
       }
       const { name, subdomain, templateId, repoUrl, whatsappGroupLink, channelLink } = parsed.data;
       const account = req.user!;
+      let siteExpiresAt = new Date(Date.now() + 30 * 86400000);
+
+      if (db) {
+        const [accountRow] = await db.select().from(accounts).where(eq(accounts.id, account.id)).limit(1);
+        const [{ value: siteCount }] = await db.select({ value: count() }).from(sites).where(eq(sites.accountId, account.id));
+        const settings = (await storage.getAdminSettings());
+        const trialEnd = accountRow?.trialEndsAt || new Date((accountRow?.trialStartedAt || new Date()).getTime() + settings.trialDays * 86400000);
+        siteExpiresAt = trialEnd > new Date() ? trialEnd : new Date(Date.now() + settings.trialDays * 86400000);
+        const trialActive = trialEnd > new Date();
+        const allowed = accountRow?.siteLimitOverride ?? (trialActive ? settings.freeSiteLimit : 0);
+        if (Number(siteCount) >= allowed && (accountRow?.siteCredits || 0) < 1) {
+          return res.status(402).json({ error: trialActive ? "Your free site limit has been reached" : "Your free trial has expired. Please pay for another pair site.", code: "PAYMENT_REQUIRED" });
+        }
+      }
 
       if (!account.githubUsername) {
         return res.status(400).json({ error: "Connect your GitHub account before creating a site" });
@@ -304,7 +359,13 @@ export async function registerRoutes(
         whatsappGroupLink: whatsappGroupLink ?? null,
         channelLink: channelLink ?? null,
         status: "active",
+        expiresAt: siteExpiresAt,
       });
+
+      if (db) {
+        const [accountRow] = await db.select().from(accounts).where(eq(accounts.id, account.id)).limit(1);
+        if ((accountRow?.siteCredits || 0) > 0) await db.update(accounts).set({ siteCredits: (accountRow?.siteCredits || 0) - 1 }).where(eq(accounts.id, account.id));
+      }
 
       const platformDomain = (process.env.PLATFORM_DOMAIN || "pairsite.space").replace(/^https?:\/\//, "").replace(/\/$/, "");
       return res.status(201).json({
@@ -414,6 +475,54 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/billing/status", requireAuth, async (req, res) => {
+    if (!db) return res.json({ trialActive: true, siteCount: 0, siteLimit: 1, priceMinor: 10000, currency: "KES" });
+    const [account] = await db.select().from(accounts).where(eq(accounts.id, req.user!.id)).limit(1);
+    const [{ value: siteCount }] = await db.select({ value: count() }).from(sites).where(eq(sites.accountId, req.user!.id));
+    const settings = await storage.getAdminSettings();
+    const trialEndsAt = account?.trialEndsAt || new Date((account?.trialStartedAt || new Date()).getTime() + settings.trialDays * 86400000);
+    return res.json({ trialEndsAt, trialActive: trialEndsAt > new Date(), siteCount: Number(siteCount), siteLimit: account?.siteLimitOverride ?? settings.freeSiteLimit, siteCredits: account?.siteCredits ?? 0, priceMinor: settings.priceMinor, currency: settings.currency });
+  });
+
+  app.post("/api/billing/initialize", requireAuth, async (req, res) => {
+    if (!db || !process.env.PAYSTACK_SECRET_KEY) return res.status(503).json({ error: "Paystack is not configured" });
+    const settings = await storage.getAdminSettings();
+    const reference = `PS_${Date.now()}_${crypto.randomBytes(5).toString("hex")}`;
+    const response = await fetch("https://api.paystack.co/transaction/initialize", { method: "POST", headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`, "Content-Type": "application/json" }, body: JSON.stringify({ email: req.user!.email, amount: settings.priceMinor, currency: settings.currency, reference, callback_url: `${process.env.PUBLIC_URL || "https://pairsite.space"}/dashboard`, metadata: { accountId: req.user!.id, purpose: "pair_site" } }) });
+    const result: any = await response.json();
+    if (!response.ok || !result.status) return res.status(502).json({ error: result.message || "Could not initialize payment" });
+    await db.insert(payments).values({ accountId: req.user!.id, reference, amountMinor: settings.priceMinor, currency: settings.currency, status: "initialized", purpose: "pair_site" });
+    return res.json({ authorizationUrl: result.data.authorization_url, reference });
+  });
+
+  app.get("/api/billing/verify/:reference", requireAuth, async (req, res) => {
+    if (!db || !process.env.PAYSTACK_SECRET_KEY) return res.status(503).json({ error: "Paystack is not configured" });
+    const [payment] = await db.select().from(payments).where(eq(payments.reference, String(req.params.reference))).limit(1);
+    if (!payment || payment.accountId !== req.user!.id) return res.status(404).json({ error: "Payment not found" });
+    const response = await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(payment.reference)}`, { headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` } });
+    const result: any = await response.json();
+    if (result.status && result.data?.status === "success") {
+      await db.update(payments).set({ status: "success", paidAt: new Date(), metadata: result.data }).where(eq(payments.id, payment.id));
+      await db.update(accounts).set({ siteCredits: (await db.select({ credits: accounts.siteCredits }).from(accounts).where(eq(accounts.id, payment.accountId)).limit(1))[0].credits + 1 }).where(eq(accounts.id, payment.accountId));
+    }
+    return res.json({ status: result.data?.status || "pending", reference: payment.reference });
+  });
+
+  app.post("/api/billing/webhook", async (req, res) => {
+    const signature = req.headers["x-paystack-signature"];
+    const expected = process.env.PAYSTACK_SECRET_KEY ? crypto.createHmac("sha512", process.env.PAYSTACK_SECRET_KEY).update(JSON.stringify(req.body)).digest("hex") : "";
+    if (!signature || signature !== expected) return res.status(401).json({ error: "Invalid signature" });
+    if (db && req.body?.event === "charge.success" && req.body.data?.reference) {
+      const [payment] = await db.select().from(payments).where(eq(payments.reference, req.body.data.reference)).limit(1);
+      if (payment && payment.status !== "success") {
+        await db.update(payments).set({ status: "success", paidAt: new Date(), metadata: req.body.data }).where(eq(payments.id, payment.id));
+        const [account] = await db.select().from(accounts).where(eq(accounts.id, payment.accountId)).limit(1);
+        if (account) await db.update(accounts).set({ siteCredits: account.siteCredits + 1 }).where(eq(accounts.id, account.id));
+      }
+    }
+    return res.sendStatus(200);
+  });
+
   app.get("/api/quick-links", async (_req, res) => {
     try {
       const links = await storage.getQuickLinks();
@@ -450,6 +559,32 @@ export async function registerRoutes(
       return res.json({ success: true });
     }
     return res.status(401).json({ error: "Invalid password" });
+  });
+
+  app.get("/api/admin/settings", (req, res) => {
+    if (req.headers["x-admin-password"] !== (process.env.ADMIN_PASSWORD || "Silentwolf906.")) return res.status(401).json({ error: "Unauthorized" });
+    storage.getAdminSettings().then((settings) => res.json(settings)).catch((err) => res.status(500).json({ error: err.message }));
+  });
+
+  app.patch("/api/admin/settings", async (req, res) => {
+    if (req.headers["x-admin-password"] !== (process.env.ADMIN_PASSWORD || "Silentwolf906.")) return res.status(401).json({ error: "Unauthorized" });
+    if (!db) return res.status(503).json({ error: "Database not configured" });
+    const body = req.body || {};
+    const [updated] = await db.update(adminSettings).set({ trialDays: Math.max(0, Number(body.trialDays ?? 30)), freeSiteLimit: Math.max(0, Number(body.freeSiteLimit ?? 1)), priceMinor: Math.max(0, Number(body.priceMinor ?? 10000)), currency: String(body.currency || "KES").toUpperCase(), defaultGroupInviteCode: body.defaultGroupInviteCode || null, defaultChannelJid: body.defaultChannelJid || null }).where(eq(adminSettings.id, Number(body.id || 1))).returning();
+    return res.json(updated);
+  });
+
+  app.get("/api/admin/accounts", async (req, res) => {
+    if (req.headers["x-admin-password"] !== (process.env.ADMIN_PASSWORD || "Silentwolf906.")) return res.status(401).json({ error: "Unauthorized" });
+    if (!db) return res.json([]);
+    const rows = await db.select().from(accounts).orderBy(desc(accounts.createdAt));
+    return res.json(rows.map(({ passwordHash, ...safe }) => safe));
+  });
+
+  app.get("/api/admin/payments", async (req, res) => {
+    if (req.headers["x-admin-password"] !== (process.env.ADMIN_PASSWORD || "Silentwolf906.")) return res.status(401).json({ error: "Unauthorized" });
+    if (!db) return res.json([]);
+    return res.json(await db.select().from(payments).orderBy(desc(payments.createdAt)));
   });
 
   app.post("/api/terminate-session", async (req, res) => {

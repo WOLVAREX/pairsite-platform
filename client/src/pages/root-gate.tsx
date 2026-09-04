@@ -26,6 +26,9 @@ export default function RootGate() {
   // site. Otherwise (the apex platform domain, or an unresolved host) show
   // the marketing landing page.
   if (data?.context === "tenant" && data.site) {
+    if (data.site.expiresAt && new Date(data.site.expiresAt) <= new Date()) {
+      return <div className="min-h-screen bg-black text-white flex items-center justify-center p-6"><div className="text-center"><h1 className="text-2xl font-bold">This Link Has Expired</h1><p className="mt-2 text-gray-500">The owner needs to renew this pair site.</p></div></div>;
+    }
     return <Home site={data.site} />;
   }
   return <Landing />;

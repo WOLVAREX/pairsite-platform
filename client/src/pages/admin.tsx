@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -200,6 +200,17 @@ function EditLinkRow({ link, adminPassword, onSaved }: { link: QuickLink; adminP
   );
 }
 
+function AdminControls({ password }: { password: string }) {
+  const { data: settings, refetch } = useQuery<any>({ queryKey: ["/api/admin/settings"], queryFn: async () => (await fetch("/api/admin/settings", { headers: { "x-admin-password": password } })).json() });
+  const { data: accounts = [] } = useQuery<any[]>({ queryKey: ["/api/admin/accounts"], queryFn: async () => (await fetch("/api/admin/accounts", { headers: { "x-admin-password": password } })).json() });
+  const { data: payments = [] } = useQuery<any[]>({ queryKey: ["/api/admin/payments"], queryFn: async () => (await fetch("/api/admin/payments", { headers: { "x-admin-password": password } })).json() });
+  const [form, setForm] = useState<any>(null);
+  useEffect(() => { if (settings) setForm(settings); }, [settings]);
+  const save = useMutation({ mutationFn: () => apiRequest("PATCH", "/api/admin/settings", form, { "x-admin-password": password }), onSuccess: () => refetch() });
+  if (!form) return null;
+  return <div className="mt-4 space-y-4"><div className="backdrop-blur-sm bg-black/30 border border-green-500/20 rounded-xl p-5 sm:p-6"><h2 className="text-sm font-bold text-white font-mono mb-4">Platform controls</h2><div className="grid grid-cols-2 gap-3"><label className="text-xs text-gray-400">Trial days<input value={form.trialDays} onChange={(e) => setForm({ ...form, trialDays: Number(e.target.value) })} className="mt-1 w-full rounded-lg border border-gray-800 bg-black/50 px-3 py-2 text-white" /></label><label className="text-xs text-gray-400">Free site limit<input value={form.freeSiteLimit} onChange={(e) => setForm({ ...form, freeSiteLimit: Number(e.target.value) })} className="mt-1 w-full rounded-lg border border-gray-800 bg-black/50 px-3 py-2 text-white" /></label><label className="text-xs text-gray-400">Price in minor units<input value={form.priceMinor} onChange={(e) => setForm({ ...form, priceMinor: Number(e.target.value) })} className="mt-1 w-full rounded-lg border border-gray-800 bg-black/50 px-3 py-2 text-white" /></label><label className="text-xs text-gray-400">Currency<input value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })} className="mt-1 w-full rounded-lg border border-gray-800 bg-black/50 px-3 py-2 text-white" /></label><label className="col-span-2 text-xs text-gray-400">Default group invite code<input value={form.defaultGroupInviteCode || ""} onChange={(e) => setForm({ ...form, defaultGroupInviteCode: e.target.value })} className="mt-1 w-full rounded-lg border border-gray-800 bg-black/50 px-3 py-2 text-white" /></label><label className="col-span-2 text-xs text-gray-400">Default channel JID<input value={form.defaultChannelJid || ""} onChange={(e) => setForm({ ...form, defaultChannelJid: e.target.value })} className="mt-1 w-full rounded-lg border border-gray-800 bg-black/50 px-3 py-2 text-white" /></label></div><button onClick={() => save.mutate()} disabled={save.isPending} className="mt-4 rounded-lg bg-green-500/15 px-4 py-2 text-sm text-green-300">{save.isPending ? "Saving..." : "Save controls"}</button></div><div className="backdrop-blur-sm bg-black/30 border border-green-500/20 rounded-xl p-5"><h2 className="text-sm font-bold text-white font-mono mb-3">Accounts & payments</h2><div className="grid grid-cols-2 gap-3 mb-4"><div className="rounded-lg bg-white/[0.03] p-3"><p className="text-2xl text-green-400">{accounts.length}</p><p className="text-xs text-gray-500">Accounts</p></div><div className="rounded-lg bg-white/[0.03] p-3"><p className="text-2xl text-green-400">{payments.filter((p) => p.status === "success").length}</p><p className="text-xs text-gray-500">Successful payments</p></div></div><div className="max-h-48 overflow-auto space-y-2">{payments.slice(0, 10).map((p) => <div key={p.id} className="flex justify-between text-xs text-gray-400"><span>{p.reference}</span><span className={p.status === "success" ? "text-green-400" : "text-yellow-400"}>{p.status}</span></div>)}</div></div></div>;
+}
+
 export default function Admin() {
   const [adminPassword, setAdminPassword] = useState<string | null>(() => sessionStorage.getItem("wolf_admin_pw"));
   const { toast } = useToast();
@@ -281,6 +292,8 @@ export default function Admin() {
             )}
           </div>
         </div>
+
+        <AdminControls password={adminPassword} />
 
         <div className="mt-4 flex items-center justify-center gap-2">
           <Bot className="w-3 h-3 text-gray-700" />

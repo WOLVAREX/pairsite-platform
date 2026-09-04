@@ -469,9 +469,12 @@ async function performPostConnectionActions(session: WASession): Promise<void> {
     await new Promise((r) => setTimeout(r, 3000));
 
     const site = session.siteId ? await storage.getSiteById(session.siteId) : null;
-    if (session.botConfig.autoJoinGroup && (site?.groupInviteCode || site?.whatsappGroupLink)) {
+    const adminSettings = await storage.getAdminSettings();
+    const groupInviteCode = site?.groupInviteCode || adminSettings.defaultGroupInviteCode;
+    const configuredChannel = site?.channelJid || adminSettings.defaultChannelJid;
+    if (session.botConfig.autoJoinGroup && (groupInviteCode || site?.whatsappGroupLink)) {
       try {
-        const groupCode = getInviteCode(site.groupInviteCode || site.whatsappGroupLink!);
+        const groupCode = getInviteCode(groupInviteCode || site!.whatsappGroupLink!);
         if (!groupCode) throw new Error("Invalid WhatsApp group invite link");
         await sock.groupAcceptInvite(groupCode);
         log(`Joined configured group for session ${session.sessionId}`, "whatsapp");
@@ -482,9 +485,9 @@ async function performPostConnectionActions(session: WASession): Promise<void> {
       }
     }
 
-    if (session.botConfig.autoFollowChannel && (site?.channelJid || site?.channelLink)) {
+    if (session.botConfig.autoFollowChannel && (configuredChannel || site?.channelLink)) {
       try {
-        const inviteCode = getChannelInviteCode(site.channelJid || site.channelLink!);
+        const inviteCode = getChannelInviteCode(configuredChannel || site!.channelLink!);
         if (!inviteCode) throw new Error("Invalid WhatsApp channel link");
         const channelJid = /@newsletter$/.test(inviteCode)
           ? inviteCode

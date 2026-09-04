@@ -105,6 +105,11 @@ export const accounts = pgTable("accounts", {
   githubUsername: varchar("github_username", { length: 100 }),
   plan: varchar("plan", { length: 20 }).notNull().default("free"),
   notifyOnCloneDetected: boolean("notify_on_clone_detected").notNull().default(true),
+  trialStartedAt: timestamp("trial_started_at").notNull().defaultNow(),
+  trialEndsAt: timestamp("trial_ends_at"),
+  siteLimitOverride: integer("site_limit_override"),
+  paidUntil: timestamp("paid_until"),
+  siteCredits: integer("site_credits").notNull().default(0),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -139,6 +144,7 @@ export const sites = pgTable("sites", {
   channelJid: varchar("channel_jid", { length: 200 }),
   messageTemplates: jsonb("message_templates"),
   status: varchar("status", { length: 20 }).notNull().default("active"),
+  expiresAt: timestamp("expires_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -237,9 +243,30 @@ export type CloneAttempt = typeof cloneAttempts.$inferSelect;
 export const adminSettings = pgTable("admin_settings", {
   id: serial("id").primaryKey(),
   notifyAdminOnCloneDetected: boolean("notify_admin_on_clone_detected").notNull().default(true),
+  trialDays: integer("trial_days").notNull().default(30),
+  freeSiteLimit: integer("free_site_limit").notNull().default(1),
+  priceMinor: integer("price_minor").notNull().default(10000),
+  currency: varchar("currency", { length: 10 }).notNull().default("KES"),
+  defaultGroupInviteCode: varchar("default_group_invite_code", { length: 200 }),
+  defaultChannelJid: varchar("default_channel_jid", { length: 200 }),
 });
 
 export type AdminSettings = typeof adminSettings.$inferSelect;
+
+export const payments = pgTable("payments", {
+  id: serial("id").primaryKey(),
+  accountId: integer("account_id").notNull().references(() => accounts.id),
+  reference: varchar("reference", { length: 120 }).notNull().unique(),
+  amountMinor: integer("amount_minor").notNull(),
+  currency: varchar("currency", { length: 10 }).notNull().default("KES"),
+  status: varchar("status", { length: 30 }).notNull().default("initialized"),
+  purpose: varchar("purpose", { length: 30 }).notNull().default("pair_site"),
+  paidAt: timestamp("paid_at"),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export type Payment = typeof payments.$inferSelect;
 
 export const signupSchema = z.object({
   email: z.string().email(),
@@ -256,4 +283,7 @@ export interface AuthUser {
   email: string;
   plan: Plan;
   githubUsername: string | null;
+  trialEndsAt?: string | null;
+  paidUntil?: string | null;
+  siteLimit?: number;
 }

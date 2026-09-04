@@ -21,6 +21,7 @@ import {
   Layers,
   ShieldCheck,
   ArrowRight,
+  CreditCard,
 } from "lucide-react";
 
 function useAuthUser() {
@@ -559,6 +560,21 @@ function BotConfigTab({ sites }: { sites: Site[] }) {
   );
 }
 
+function BillingTab() {
+  const { data, isLoading } = useQuery<any>({ queryKey: ["/api/billing/status"] });
+  const pay = useMutation({ mutationFn: async () => (await apiRequest("POST", "/api/billing/initialize")).json(), onSuccess: (result: any) => { window.location.href = result.authorizationUrl; } });
+  if (isLoading) return <SectionHeading title="Billing" subtitle="Loading your plan..." />;
+  return <div><SectionHeading title="Billing" subtitle="One month free, then KSh 100 per additional pair site" /><div className="max-w-xl rounded-xl border border-gray-800/60 bg-black/20 p-6 space-y-4"><div className="flex items-center justify-between"><span className="text-gray-400">Trial</span><span className={data?.trialActive ? "text-green-400" : "text-red-400"}>{data?.trialActive ? "Active" : "Expired"}</span></div><div className="flex items-center justify-between"><span className="text-gray-400">Sites</span><span className="text-white">{data?.siteCount} / {data?.siteLimit}</span></div><div className="flex items-center justify-between"><span className="text-gray-400">Available site credits</span><span className="text-white">{data?.siteCredits || 0}</span></div><button onClick={() => pay.mutate()} disabled={pay.isPending} className="inline-flex items-center gap-2 rounded-lg bg-green-500/15 px-4 py-3 text-green-300 hover:bg-green-500/25 disabled:opacity-50"><CreditCard className="h-4 w-4" />{pay.isPending ? "Opening Paystack..." : `Pay ${data?.currency || "KES"} ${((data?.priceMinor || 10000) / 100).toFixed(2)} for another site`}</button>{pay.isError && <p className="text-xs text-red-400">Payment could not be started. Check Paystack configuration.</p>}</div></div>;
+}
+
+function DomainTab({ sites }: { sites: Site[] }) {
+  const [hostname, setHostname] = useState(""); const [siteId, setSiteId] = useState(sites[0]?.id || 0); const [result, setResult] = useState<any>(null); const [error, setError] = useState("");
+  const { data = [], refetch } = useQuery<any[]>({ queryKey: ["/api/domains"] });
+  const add = useMutation({ mutationFn: async () => (await apiRequest("POST", "/api/domains", { hostname, siteId })).json(), onSuccess: (d) => { setResult(d); setHostname(""); refetch(); }, onError: (e: any) => setError(e.message) });
+  const verify = useMutation({ mutationFn: async (id: number) => (await apiRequest("POST", `/api/domains/${id}/verify`)).json(), onSuccess: () => refetch(), onError: (e: any) => setError(e.message) });
+  return <div><SectionHeading title="Custom domains" subtitle="Connect a domain with a DNS TXT verification record" /><div className="max-w-2xl rounded-xl border border-gray-800/60 bg-black/20 p-6 space-y-4"><div className="flex gap-3"><select value={siteId} onChange={(e) => setSiteId(Number(e.target.value))} className="rounded-lg border border-gray-800 bg-black px-3 py-2 text-sm text-white">{sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select><input value={hostname} onChange={(e) => setHostname(e.target.value)} placeholder="bot.example.com" className="min-w-0 flex-1 rounded-lg border border-gray-800 bg-black/50 px-3 py-2 text-sm text-white" /><button onClick={() => add.mutate()} disabled={!hostname || add.isPending} className="rounded-lg bg-green-500/15 px-4 py-2 text-sm text-green-300">Add</button></div>{result?.dns && <div className="rounded-lg border border-yellow-500/20 bg-yellow-500/5 p-4 text-xs text-yellow-200">Create TXT record <code>{result.dns.name}</code> = <code>{result.dns.value}</code>, then click Verify.</div>}{error && <p className="text-xs text-red-400">{error}</p>}<div className="space-y-2">{data.map((d: any) => <div key={d.id} className="flex items-center justify-between rounded-lg border border-gray-800/50 p-3 text-sm"><span className="text-white">{d.hostname}</span><span className="text-gray-500">{d.verified ? "Verified" : <button onClick={() => verify.mutate(d.id)} className="text-green-400">Verify DNS</button>}</span></div>)}</div></div></div>;
+}
+
 export default function Dashboard() {
   const [, setLocation] = useLocation();
   const { data: user, isLoading: userLoading } = useAuthUser();
@@ -585,6 +601,9 @@ export default function Dashboard() {
       {tab === "sites" && <MySitesTab sites={sites} isLoading={sitesLoading} onNavigate={setTab} />}
       {tab === "create" && <CreateSiteTab user={user} onCreated={() => setTab("sites")} />}
       {tab === "bot-config" && <BotConfigTab sites={sites} />}
+      {tab === "billing" && <BillingTab />}
+      {tab === "domain" && <DomainTab sites={sites} />}
+      {tab === "analytics" && <div><SectionHeading title="Analytics" subtitle="Live platform session activity" /><a href="/analytics" className="text-green-400 underline">Open analytics dashboard</a></div>}
     </DashboardLayout>
   );
 }

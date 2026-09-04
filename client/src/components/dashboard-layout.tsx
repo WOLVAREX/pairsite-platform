@@ -7,6 +7,9 @@ import {
   Bot,
   LayoutDashboard,
   Settings2,
+  Globe2,
+  BarChart3,
+  CreditCard,
   LogOut,
   Menu,
   X,
@@ -36,6 +39,9 @@ const NAV_ITEMS: NavItem[] = [
   { id: "sites", label: "My sites", icon: Bot, available: true },
   { id: "create", label: "Create site", icon: Plus, available: true },
   { id: "bot-config", label: "Bot config", icon: Settings2, available: true },
+  { id: "domain", label: "Custom domain", icon: Globe2, available: true },
+  { id: "analytics", label: "Analytics", icon: BarChart3, available: true },
+  { id: "billing", label: "Billing", icon: CreditCard, available: true },
 ];
 
 export function DashboardLayout({
@@ -102,12 +108,6 @@ export function DashboardLayout({
               </button>
             );
           })}
-          </div>
-          <div className="mt-8 border-t border-gray-800/60 pt-5">
-            <p className="px-3 pb-2 text-[10px] font-mono uppercase tracking-[0.18em] text-gray-600">Coming soon</p>
-            <div className="space-y-1 px-3 text-xs font-mono text-gray-700">
-              <p>Custom domains</p><p>Analytics</p><p>Billing</p>
-            </div>
           </div>
         </nav>
 
