@@ -241,6 +241,7 @@ function CreateSiteTab({ user, onCreated }: { user: AuthUser; onCreated: () => v
   const [repoUrl, setRepoUrl] = useState("");
   const [whatsappGroupLink, setWhatsappGroupLink] = useState("");
   const [channelLink, setChannelLink] = useState("");
+  const [sessionPrefix, setSessionPrefix] = useState("WOLFBOT:~");
   const [templateId, setTemplateId] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
@@ -264,6 +265,7 @@ function CreateSiteTab({ user, onCreated }: { user: AuthUser; onCreated: () => v
         repoUrl,
         whatsappGroupLink: whatsappGroupLink || undefined,
         channelLink: channelLink || undefined,
+        sessionPrefix: sessionPrefix || undefined,
         templateId: templateId ?? undefined,
       });
       if (!res.ok) {
@@ -280,6 +282,7 @@ function CreateSiteTab({ user, onCreated }: { user: AuthUser; onCreated: () => v
       setRepoUrl("");
       setWhatsappGroupLink("");
       setChannelLink("");
+      setSessionPrefix("WOLFBOT:~");
     },
     onError: (err: any) => {
       setError(err.message?.replace(/^\d+:\s*/, "") || "Failed to create site");
@@ -348,6 +351,11 @@ function CreateSiteTab({ user, onCreated }: { user: AuthUser; onCreated: () => v
                 data-testid="input-site-name"
                 className="w-full bg-black/50 border border-gray-800/50 rounded-lg px-4 py-3 text-white font-mono text-sm placeholder-gray-700 focus:outline-none focus:border-green-500/50 transition-colors"
               />
+            </div>
+            <div>
+              <label className="text-gray-400 font-mono text-xs uppercase tracking-wider mb-2 block">Session Prefix</label>
+              <input value={sessionPrefix} onChange={(e) => setSessionPrefix(e.target.value)} placeholder="WOLFBOT:~" data-testid="input-session-prefix" className="w-full bg-black/50 border border-gray-800/50 rounded-lg px-4 py-3 text-white font-mono text-sm placeholder-gray-700 focus:outline-none focus:border-green-500/50 transition-colors" />
+              <p className="mt-1.5 text-[10px] text-gray-600">Used before generated credentials. You can edit it later in Bot config.</p>
             </div>
             <div>
               <label className="text-gray-400 font-mono text-xs uppercase tracking-wider mb-2 block">Subdomain</label>
@@ -594,11 +602,32 @@ function CustomizeTab({ sites }: { sites: Site[] }) {
 }
 
 function DomainTab({ sites }: { sites: Site[] }) {
-  const [hostname, setHostname] = useState(""); const [siteId, setSiteId] = useState(sites[0]?.id || 0); const [result, setResult] = useState<any>(null); const [error, setError] = useState("");
+  const [hostname, setHostname] = useState("");
+  const [siteId, setSiteId] = useState(sites[0]?.id || 0);
+  const [result, setResult] = useState<any>(null);
+  const [error, setError] = useState("");
   const { data = [], refetch } = useQuery<any[]>({ queryKey: ["/api/domains"] });
   const add = useMutation({ mutationFn: async () => (await apiRequest("POST", "/api/domains", { hostname, siteId })).json(), onSuccess: (d) => { setResult(d); setHostname(""); refetch(); }, onError: (e: any) => setError(e.message) });
   const verify = useMutation({ mutationFn: async (id: number) => (await apiRequest("POST", `/api/domains/${id}/verify`)).json(), onSuccess: () => refetch(), onError: (e: any) => setError(e.message) });
-  return <div><SectionHeading title="Custom domains" subtitle="Connect a domain with a DNS TXT verification record" /><div className="max-w-2xl rounded-xl border border-gray-800/60 bg-black/20 p-6 space-y-4"><div className="flex gap-3"><select value={siteId} onChange={(e) => setSiteId(Number(e.target.value))} className="rounded-lg border border-gray-800 bg-black px-3 py-2 text-sm text-white">{sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select><input value={hostname} onChange={(e) => setHostname(e.target.value)} placeholder="bot.example.com" className="min-w-0 flex-1 rounded-lg border border-gray-800 bg-black/50 px-3 py-2 text-sm text-white" /><button onClick={() => add.mutate()} disabled={!hostname || add.isPending} className="rounded-lg bg-green-500/15 px-4 py-2 text-sm text-green-300">Add</button></div>{result?.dns && <div className="rounded-lg border border-yellow-500/20 bg-yellow-500/5 p-4 text-xs text-yellow-200">Create TXT record <code>{result.dns.name}</code> = <code>{result.dns.value}</code>, then click Verify.</div>}{error && <p className="text-xs text-red-400">{error}</p>}<div className="space-y-2">{data.map((d: any) => <div key={d.id} className="flex items-center justify-between rounded-lg border border-gray-800/50 p-3 text-sm"><span className="text-white">{d.hostname}</span><span className="text-gray-500">{d.verified ? "Verified" : <button onClick={() => verify.mutate(d.id)} className="text-green-400">Verify DNS</button>}</span></div>)}</div></div></div>;
+  return <div>
+    <SectionHeading title="Custom domains" subtitle="Connect a domain with a DNS TXT verification record" />
+    <div className="mb-5 max-w-2xl rounded-xl border border-green-500/15 bg-green-500/[0.04] p-5 text-sm text-gray-400">
+      <p className="font-medium text-white">Custom domain guide</p>
+      <ol className="mt-3 list-decimal space-y-2 pl-5 text-xs leading-relaxed">
+        <li>Enter a hostname such as <code>bot.example.com</code> and select your pair site.</li>
+        <li>Click Add and copy the TXT record beginning with <code>_pairsite.</code>.</li>
+        <li>Create that TXT record at your DNS provider exactly as shown.</li>
+        <li>Wait for DNS propagation, then click Verify DNS here.</li>
+        <li>After verification, point the hostname to PairSite using an A record or Cloudflare proxy.</li>
+      </ol>
+    </div>
+    <div className="max-w-2xl rounded-xl border border-gray-800/60 bg-black/20 p-6 space-y-4">
+      <div className="flex gap-3"><select value={siteId} onChange={(e) => setSiteId(Number(e.target.value))} className="rounded-lg border border-gray-800 bg-black px-3 py-2 text-sm text-white">{sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select><input value={hostname} onChange={(e) => setHostname(e.target.value)} placeholder="bot.example.com" className="min-w-0 flex-1 rounded-lg border border-gray-800 bg-black/50 px-3 py-2 text-sm text-white" /><button onClick={() => add.mutate()} disabled={!hostname || add.isPending} className="rounded-lg bg-green-500/15 px-4 py-2 text-sm text-green-300">Add</button></div>
+      {result?.dns && <div className="rounded-lg border border-yellow-500/20 bg-yellow-500/5 p-4 text-xs text-yellow-200">Create TXT record <code>{result.dns.name}</code> = <code>{result.dns.value}</code>, then click Verify.</div>}
+      {error && <p className="text-xs text-red-400">{error}</p>}
+      <div className="space-y-2">{data.map((d: any) => <div key={d.id} className="flex items-center justify-between rounded-lg border border-gray-800/50 p-3 text-sm"><span className="text-white">{d.hostname}</span><span className="text-gray-500">{d.verified ? "Verified" : <button onClick={() => verify.mutate(d.id)} className="text-green-400">Verify DNS</button>}</span></div>)}</div>
+    </div>
+  </div>;
 }
 
 export default function Dashboard() {

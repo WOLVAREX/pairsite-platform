@@ -18,7 +18,7 @@ import { sendCloneAttemptEmails, sendWelcomeEmail, sendSiteCreatedEmail } from "
 import { SITE_TEMPLATES, isValidTemplateId } from "@shared/templates";
 import { log } from "./index";
 import { db } from "./db";
-import { accounts, adminSettings, domains, payments, sites, sessionsLog, getSiteUiConfig } from "@shared/schema";
+import { accounts, adminSettings, domains, payments, sites, sessionsLog, getSiteUiConfig, DEFAULT_BOT_CONFIG } from "@shared/schema";
 import { eq, desc, count, inArray, and } from "drizzle-orm";
 import crypto from "node:crypto";
 import { resolveTxt } from "node:dns/promises";
@@ -279,7 +279,7 @@ export async function registerRoutes(
       if (!parsed.success) {
         return res.status(400).json({ error: "Invalid request", details: parsed.error.flatten() });
       }
-      const { name, subdomain, templateId, repoUrl, whatsappGroupLink, channelLink } = parsed.data;
+      const { name, subdomain, templateId, repoUrl, whatsappGroupLink, channelLink, sessionPrefix } = parsed.data;
       const account = req.user!;
       let siteExpiresAt = new Date(Date.now() + 30 * 86400000);
 
@@ -375,6 +375,7 @@ export async function registerRoutes(
         channelLink: channelLink ?? null,
         status: "active",
         expiresAt: siteExpiresAt,
+        messageTemplates: { ...DEFAULT_BOT_CONFIG, ...(sessionPrefix ? { sessionPrefix } : {}) },
       });
       sendSiteCreatedEmail(account.email, site).catch((err) => log(`Site-created email error: ${err.message}`, "email"));
 

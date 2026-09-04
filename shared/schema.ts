@@ -232,6 +232,7 @@ export const createSiteSchema = z.object({
   repoUrl: z.string().url(),
   whatsappGroupLink: z.string().url().optional(),
   channelLink: z.string().url().optional(),
+  sessionPrefix: z.string().trim().min(1).max(80).optional(),
 });
 
 export const domains = pgTable("domains", {
