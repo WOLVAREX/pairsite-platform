@@ -132,6 +132,7 @@ export function configurePassport() {
                   githubUsername: profile.username,
                   plan: "free",
                 });
+                sendWelcomeEmail(account.email).catch((err) => log(`Welcome email error: ${err.message}`, "email"));
               }
             } else if (!account.githubUsername) {
               account = await storage.updateAccount(account.id, { githubUsername: profile.username });
