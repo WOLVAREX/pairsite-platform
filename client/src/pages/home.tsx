@@ -304,6 +304,17 @@ export default function Home({ site }: { site: Site }) {
 
   const template = getTemplateById(site.templateId);
 
+  useEffect(() => {
+    document.title = `${site.name} Pair | PairSite`;
+    const description = document.querySelector('meta[name="description"]');
+    if (description) {
+      description.setAttribute("content", `Connect your WhatsApp device to ${site.name} using a pairing code or QR code.`);
+    }
+    return () => {
+      document.title = "PairSite";
+    };
+  }, [site.name]);
+
   return (
     <div
       className="min-h-screen app-shell text-white relative overflow-hidden"
