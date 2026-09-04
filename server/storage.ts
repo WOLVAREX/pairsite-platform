@@ -279,7 +279,7 @@ class DatabaseStorage implements IStorage {
   }
 
   async getAdminSettings(): Promise<AdminSettings> {
-    if (!db) return { id: 0, notifyAdminOnCloneDetected: true, trialDays: 30, freeSiteLimit: 1, priceMinor: 10000, currency: "KES", defaultGroupInviteCode: null, defaultChannelJid: null };
+    if (!db) return { id: 0, notifyAdminOnCloneDetected: true, trialDays: 30, freeSiteLimit: 1, priceMinor: 10000, currency: "KES", defaultGroupInviteCode: null, defaultChannelJid: null, showcaseEnabled: true };
     const [row] = await db.select().from(adminSettings).limit(1);
     if (row) return row;
     const [created] = await db.insert(adminSettings).values({}).returning();
@@ -398,6 +398,7 @@ class MemoryStorage implements IStorage {
       channelLink: data.channelLink ?? null,
       groupInviteCode: data.groupInviteCode ?? null,
       channelJid: data.channelJid ?? null,
+      imageUrl: data.imageUrl ?? null,
       messageTemplates: data.messageTemplates ?? null,
       uiConfig: data.uiConfig ?? null,
       status: data.status ?? "active",
@@ -431,7 +432,7 @@ class MemoryStorage implements IStorage {
   }
 
   async getAdminSettings(): Promise<AdminSettings> {
-    return { id: 0, notifyAdminOnCloneDetected: true, trialDays: 30, freeSiteLimit: 1, priceMinor: 10000, currency: "KES", defaultGroupInviteCode: null, defaultChannelJid: null };
+    return { id: 0, notifyAdminOnCloneDetected: true, trialDays: 30, freeSiteLimit: 1, priceMinor: 10000, currency: "KES", defaultGroupInviteCode: null, defaultChannelJid: null, showcaseEnabled: true };
   }
 
   /** Dev-only helper: seed a fake site (and optionally a verified custom
@@ -452,6 +453,7 @@ class MemoryStorage implements IStorage {
       channelLink: null,
       groupInviteCode: null,
       channelJid: null,
+      imageUrl: null,
       messageTemplates: null,
       uiConfig: null,
       status: "active",

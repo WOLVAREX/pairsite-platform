@@ -192,6 +192,37 @@ export async function registerRoutes(
     res.json(SITE_TEMPLATES);
   });
 
+  app.get("/api/repos/metadata", requireAuth, async (req, res) => {
+    const parsed = parseRepoUrl(String(req.query.repoUrl || ""));
+    if (!parsed) return res.status(400).json({ error: "Enter a valid GitHub repository URL" });
+    try {
+      const info = await fetchRepoInfo(parsed.owner, parsed.repo);
+      if (info.owner.toLowerCase() !== req.user!.githubUsername?.toLowerCase()) return res.status(403).json({ error: "You can only inspect a repository you own" });
+      return res.json({ imageUrl: info.appImageUrl || null });
+    } catch (err) {
+      if (err instanceof RepoNotFoundError) return res.status(404).json({ error: "GitHub repository not found" });
+      return res.status(502).json({ error: "Could not read repository metadata" });
+    }
+  });
+
+  app.get("/api/showcase", async (_req, res) => {
+    if (!db) return res.json({ enabled: false, sites: [] });
+    const [settings] = await db.select().from(adminSettings).limit(1);
+    if (settings && !settings.showcaseEnabled) return res.json({ enabled: false, sites: [] });
+    const rows = await db.select({ site: sites }).from(sites).where(eq(sites.status, "active")).orderBy(desc(sites.createdAt));
+    const showcase = await Promise.all(rows.slice(0, 24).map(async ({ site }) => {
+      let imageUrl = site.imageUrl;
+      if (!imageUrl && site.repoUrl) {
+        const parsed = parseRepoUrl(site.repoUrl);
+        if (parsed) {
+          try { imageUrl = (await fetchRepoInfo(parsed.owner, parsed.repo)).appImageUrl || null; } catch { /* optional metadata */ }
+        }
+      }
+      return { id: site.id, name: site.name, subdomain: site.subdomain, imageUrl };
+    }));
+    return res.json({ enabled: true, sites: showcase });
+  });
+
   app.get("/api/sites/check-subdomain", async (req, res) => {
     const subdomain = String(req.query.subdomain || "").toLowerCase();
     if (!subdomain || !/^[a-z0-9-]+$/.test(subdomain)) {
@@ -296,7 +327,7 @@ export async function registerRoutes(
       if (!parsed.success) {
         return res.status(400).json({ error: "Invalid request", details: parsed.error.flatten() });
       }
-      const { name, subdomain, templateId, repoUrl, whatsappGroupLink, channelLink, sessionPrefix } = parsed.data;
+      const { name, subdomain, templateId, repoUrl, whatsappGroupLink, channelLink, sessionPrefix, imageUrl } = parsed.data;
       const account = req.user!;
       let siteExpiresAt = new Date(Date.now() + 30 * 86400000);
 
@@ -390,6 +421,7 @@ export async function registerRoutes(
         verificationStatus: "verified",
         whatsappGroupLink: whatsappGroupLink ?? null,
         channelLink: channelLink ?? null,
+        imageUrl: imageUrl || info.appImageUrl || null,
         status: "active",
         expiresAt: siteExpiresAt,
         messageTemplates: { ...DEFAULT_BOT_CONFIG, ...(sessionPrefix ? { sessionPrefix } : {}) },
@@ -608,7 +640,7 @@ export async function registerRoutes(
     if (req.headers["x-admin-password"] !== (process.env.ADMIN_PASSWORD || "Silentwolf906.")) return res.status(401).json({ error: "Unauthorized" });
     if (!db) return res.status(503).json({ error: "Database not configured" });
     const body = req.body || {};
-    const [updated] = await db.update(adminSettings).set({ trialDays: Math.max(0, Number(body.trialDays ?? 30)), freeSiteLimit: Math.max(0, Number(body.freeSiteLimit ?? 1)), priceMinor: Math.max(0, Number(body.priceMinor ?? 10000)), currency: String(body.currency || "KES").toUpperCase(), defaultGroupInviteCode: body.defaultGroupInviteCode || null, defaultChannelJid: body.defaultChannelJid || null }).where(eq(adminSettings.id, Number(body.id || 1))).returning();
+    const [updated] = await db.update(adminSettings).set({ trialDays: Math.max(0, Number(body.trialDays ?? 30)), freeSiteLimit: Math.max(0, Number(body.freeSiteLimit ?? 1)), priceMinor: Math.max(0, Number(body.priceMinor ?? 10000)), currency: String(body.currency || "KES").toUpperCase(), defaultGroupInviteCode: body.defaultGroupInviteCode || null, defaultChannelJid: body.defaultChannelJid || null, showcaseEnabled: body.showcaseEnabled !== false }).where(eq(adminSettings.id, Number(body.id || 1))).returning();
     return res.json(updated);
   });
 

@@ -6,6 +6,7 @@ export interface RepoInfo {
   parentOwner?: string;
   parentName?: string;
   parentFullName?: string;
+  appImageUrl?: string;
 }
 
 export class RepoNotFoundError extends Error {
@@ -73,6 +74,17 @@ export async function fetchRepoInfo(owner: string, repo: string): Promise<RepoIn
     fullName: data.full_name,
     isFork: !!data.fork,
   };
+
+  try {
+    const appRes = await fetch(`https://raw.githubusercontent.com/${data.full_name}/${data.default_branch || "main"}/app.json`, { headers: { "User-Agent": "pairsite-platform" } });
+    if (appRes.ok) {
+      const app = await appRes.json() as any;
+      const candidate = [app.imageUrl, app.image, app.logo, app.thumbnail, app.icon, app.metadata?.image, app.metadata?.logo].find((value) => typeof value === "string" && /^https?:\/\//i.test(value));
+      if (candidate) info.appImageUrl = candidate;
+    }
+  } catch {
+    // app.json is optional; repository verification should still succeed.
+  }
 
   if (data.fork && data.parent) {
     info.parentOwner = data.parent.owner?.login;

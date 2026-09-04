@@ -142,6 +142,7 @@ export const sites = pgTable("sites", {
   channelLink: varchar("channel_link", { length: 500 }),
   groupInviteCode: varchar("group_invite_code", { length: 200 }),
   channelJid: varchar("channel_jid", { length: 200 }),
+  imageUrl: varchar("image_url", { length: 1000 }),
   messageTemplates: jsonb("message_templates"),
   uiConfig: jsonb("ui_config"),
   status: varchar("status", { length: 20 }).notNull().default("active"),
@@ -230,6 +231,7 @@ export const createSiteSchema = z.object({
   subdomain: z.string().min(1).max(63).regex(/^[a-z0-9-]+$/, "lowercase letters, numbers, and hyphens only"),
   templateId: z.number().int().optional(),
   repoUrl: z.string().url(),
+  imageUrl: z.string().url().max(1000).optional(),
   whatsappGroupLink: z.string().url().optional(),
   channelLink: z.string().url().optional(),
   sessionPrefix: z.string().trim().min(1).max(80).optional(),
@@ -272,6 +274,7 @@ export const adminSettings = pgTable("admin_settings", {
   currency: varchar("currency", { length: 10 }).notNull().default("KES"),
   defaultGroupInviteCode: varchar("default_group_invite_code", { length: 200 }),
   defaultChannelJid: varchar("default_channel_jid", { length: 200 }),
+  showcaseEnabled: boolean("showcase_enabled").notNull().default(true),
 });
 
 export type AdminSettings = typeof adminSettings.$inferSelect;

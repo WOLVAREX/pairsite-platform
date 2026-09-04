@@ -253,6 +253,8 @@ function CreateSiteTab({ user, onCreated }: { user: AuthUser; onCreated: () => v
   const [name, setName] = useState("");
   const [subdomain, setSubdomain] = useState("");
   const [repoUrl, setRepoUrl] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [imageEdited, setImageEdited] = useState(false);
   const [whatsappGroupLink, setWhatsappGroupLink] = useState("");
   const [channelLink, setChannelLink] = useState("");
   const [sessionPrefix, setSessionPrefix] = useState("WOLFBOT:~");
@@ -263,6 +265,11 @@ function CreateSiteTab({ user, onCreated }: { user: AuthUser; onCreated: () => v
   const [needsPayment, setNeedsPayment] = useState(false);
   const subdomainStatus = useSubdomainCheck(subdomain);
   const { data: templates = [] } = useQuery<SiteTemplate[]>({ queryKey: ["/api/templates"] });
+  const { data: repoMetadata, isFetching: metadataLoading } = useQuery<{ imageUrl: string | null }>({ queryKey: ["/api/repos/metadata", repoUrl], queryFn: async () => (await fetch(`/api/repos/metadata?repoUrl=${encodeURIComponent(repoUrl)}`)).json(), enabled: !!user.githubUsername && /^https?:\/\/github\.com\//i.test(repoUrl), retry: false });
+
+  useEffect(() => {
+    if (!imageEdited && repoMetadata?.imageUrl) setImageUrl(repoMetadata.imageUrl);
+  }, [repoMetadata, imageEdited]);
 
   useEffect(() => {
     if (templateId === null && templates.length > 0) {
@@ -277,6 +284,7 @@ function CreateSiteTab({ user, onCreated }: { user: AuthUser; onCreated: () => v
         name,
         subdomain,
         repoUrl,
+        imageUrl: imageUrl || undefined,
         whatsappGroupLink: whatsappGroupLink || undefined,
         channelLink: channelLink || undefined,
         sessionPrefix: sessionPrefix || undefined,
@@ -294,6 +302,8 @@ function CreateSiteTab({ user, onCreated }: { user: AuthUser; onCreated: () => v
       setName("");
       setSubdomain("");
       setRepoUrl("");
+      setImageUrl("");
+      setImageEdited(false);
       setWhatsappGroupLink("");
       setChannelLink("");
       setSessionPrefix("WOLFBOT:~");
@@ -365,6 +375,11 @@ function CreateSiteTab({ user, onCreated }: { user: AuthUser; onCreated: () => v
                 data-testid="input-site-name"
                 className="w-full bg-black/50 border border-gray-800/50 rounded-lg px-4 py-3 text-white font-mono text-sm placeholder-gray-700 focus:outline-none focus:border-green-500/50 transition-colors"
               />
+            </div>
+            <div>
+              <label className="text-gray-400 font-mono text-xs uppercase tracking-wider mb-2 block">Bot Image URL (optional)</label>
+              <input value={imageUrl} onChange={(e) => { setImageEdited(true); setImageUrl(e.target.value); }} placeholder={metadataLoading ? "Reading app.json..." : "https://.../bot-image.png"} data-testid="input-site-image" className="w-full bg-black/50 border border-gray-800/50 rounded-lg px-4 py-3 text-white font-mono text-sm placeholder-gray-700 focus:outline-none focus:border-green-500/50 transition-colors" />
+              <p className="mt-1.5 text-[10px] text-gray-600">If your repository has an image in app.json, it will be filled automatically. You can replace it.</p>
             </div>
             <div>
               <label className="text-gray-400 font-mono text-xs uppercase tracking-wider mb-2 block">Session Prefix</label>

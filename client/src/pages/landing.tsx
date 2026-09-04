@@ -1,4 +1,5 @@
 import { Link } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import {
   Bot,
   Rocket,
@@ -12,6 +13,8 @@ import {
   Layers,
   CheckCircle2,
 } from "lucide-react";
+
+interface ShowcaseSite { id: number; name: string; subdomain: string; imageUrl: string | null; }
 
 const FEATURES = [
   {
@@ -44,6 +47,7 @@ const STEPS = [
 ];
 
 export default function Landing() {
+  const { data: showcase } = useQuery<{ enabled: boolean; sites: ShowcaseSite[] }>({ queryKey: ["/api/showcase"] });
   return (
     <div className="min-h-screen bg-black relative overflow-hidden">
       <div className="neon-bg" />
@@ -114,6 +118,8 @@ export default function Landing() {
           ))}
         </div>
       </section>
+
+      {showcase?.enabled && showcase.sites.length > 0 && <section className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-16"><div className="mb-8 text-center"><p className="text-green-400 font-mono text-xs uppercase tracking-[0.2em]">Built with PairSite</p><h2 className="mt-2 text-white font-display font-bold text-2xl sm:text-3xl">Developers are already running their PairSites</h2><p className="mx-auto mt-3 max-w-2xl text-gray-500 font-mono text-sm">Explore live pairing pages created by developers in the community.</p></div><div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">{showcase.sites.map((site) => <a key={site.id} href={`https://${site.subdomain}.pairsite.space`} target="_blank" rel="noreferrer" className="group overflow-hidden rounded-xl border border-gray-800/60 bg-black/30 transition-colors hover:border-green-500/40"><div className="aspect-[4/3] bg-gray-950">{site.imageUrl ? <img src={site.imageUrl} alt={`${site.name} bot`} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy" /> : <div className="flex h-full items-center justify-center"><Bot className="h-12 w-12 text-green-500/50" /></div>}</div><div className="p-4"><p className="truncate text-sm font-medium text-white">{site.name}</p><p className="mt-1 truncate text-xs text-gray-500">{site.subdomain}.pairsite.space</p></div></a>)}</div></section>}
 
       {/* How it works */}
       <section className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 py-16">
