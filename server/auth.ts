@@ -116,9 +116,15 @@ export function configurePassport() {
         },
         async (_accessToken: string, _refreshToken: string, profile: any, done: any) => {
           try {
+            const githubEmails = Array.isArray(profile.emails) ? profile.emails : [];
+            const realGithubEmail = githubEmails.find((entry: any) =>
+              entry?.value && entry.verified !== false && !entry.value.toLowerCase().endsWith("@users.noreply.github.com")
+            )?.value;
+            const verifiedGithubEmail = githubEmails.find((entry: any) => entry?.value && entry.verified !== false)?.value;
+            const githubEmail = realGithubEmail || verifiedGithubEmail;
             let account = await storage.getAccountByGithubId(profile.id);
             if (!account) {
-              const email = profile.emails?.[0]?.value;
+              const email = githubEmail;
               const existingByEmail = email ? await storage.getAccountByEmail(email) : null;
               if (existingByEmail) {
                 account = await storage.updateAccount(existingByEmail.id, {
@@ -134,8 +140,11 @@ export function configurePassport() {
                 });
                 sendWelcomeEmail(account.email).catch((err) => log(`Welcome email error: ${err.message}`, "email"));
               }
-            } else if (!account.githubUsername) {
-              account = await storage.updateAccount(account.id, { githubUsername: profile.username });
+            } else if (!account.githubUsername || (githubEmail && account.email.endsWith("@users.noreply.github.com") && githubEmail !== account.email)) {
+              account = await storage.updateAccount(account.id, {
+                githubUsername: profile.username,
+                ...(githubEmail ? { email: githubEmail } : {}),
+              });
             }
             if (!account) return done(null, false);
             return done(null, toAuthUser(account));
