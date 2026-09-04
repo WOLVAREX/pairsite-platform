@@ -6,16 +6,10 @@ import type { AuthUser } from "@shared/schema";
 import {
   Bot,
   LayoutDashboard,
-  Globe,
-  Settings2,
-  BarChart3,
-  ScrollText,
-  CreditCard,
-  UserCog,
   LogOut,
   Menu,
   X,
-  Lock,
+  Plus,
 } from "lucide-react";
 
 export type DashboardTab =
@@ -37,15 +31,9 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { id: "overview", label: "Dashboard", icon: LayoutDashboard, available: true },
-  { id: "sites", label: "My Sites", icon: Bot, available: true },
-  { id: "create", label: "Create Site", icon: Globe, available: true },
-  { id: "bot-config", label: "Bot Config", icon: Settings2, available: false },
-  { id: "domain", label: "Domain", icon: Globe, available: false },
-  { id: "analytics", label: "Analytics", icon: BarChart3, available: false },
-  { id: "logs", label: "Session Logs", icon: ScrollText, available: false },
-  { id: "billing", label: "Billing", icon: CreditCard, available: false },
-  { id: "settings", label: "Settings", icon: UserCog, available: false },
+  { id: "overview", label: "Overview", icon: LayoutDashboard, available: true },
+  { id: "sites", label: "My sites", icon: Bot, available: true },
+  { id: "create", label: "Create site", icon: Plus, available: true },
 ];
 
 export function DashboardLayout({
@@ -73,16 +61,18 @@ export function DashboardLayout({
     return (
       <div className="flex flex-col h-full">
         <Link href="/" className="flex items-center gap-3 px-5 py-6">
-          <div className="p-2 rounded-lg bg-green-500/10 border border-green-500/20 animate-glow-pulse">
-            <Bot className="w-5 h-5 text-green-400" />
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-green-400 text-black shadow-[0_0_24px_rgba(74,222,128,0.15)]">
+            <Bot className="w-4 h-4" />
           </div>
           <div>
             <p className="text-white font-display font-bold text-sm">PairSite</p>
-            <p className="text-gray-600 font-mono text-[10px]">Developer Workspace</p>
+            <p className="text-gray-600 font-mono text-[10px]">Creator workspace</p>
           </div>
         </Link>
 
-        <nav className="flex-1 px-3 space-y-1 overflow-y-auto">
+        <nav className="flex-1 px-3 overflow-y-auto">
+          <p className="px-3 pb-2 text-[10px] font-mono uppercase tracking-[0.18em] text-gray-600">Workspace</p>
+          <div className="space-y-1">
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon;
             const isActive = active === item.id;
@@ -96,31 +86,38 @@ export function DashboardLayout({
                 }}
                 disabled={!item.available}
                 data-testid={`nav-${item.id}`}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg font-mono text-xs uppercase tracking-wider transition-colors ${
+                className={`relative w-full flex items-center gap-3 px-3 py-2.5 rounded-lg font-mono text-xs transition-colors ${
                   isActive
-                    ? "bg-green-500/10 border border-green-500/30 text-green-400"
+                    ? "bg-white/[0.07] text-white"
                     : item.available
-                    ? "text-gray-400 hover:text-white hover:bg-white/5 border border-transparent"
-                    : "text-gray-700 cursor-not-allowed border border-transparent"
+                    ? "text-gray-500 hover:text-gray-200 hover:bg-white/[0.04]"
+                    : "text-gray-700 cursor-not-allowed"
                 }`}
               >
+                {isActive && <span className="absolute left-0 h-5 w-0.5 rounded-full bg-green-400" />}
                 <Icon className="w-4 h-4 shrink-0" />
                 <span className="truncate">{item.label}</span>
-                {!item.available && <Lock className="w-3 h-3 ml-auto shrink-0" />}
               </button>
             );
           })}
+          </div>
+          <div className="mt-8 border-t border-gray-800/60 pt-5">
+            <p className="px-3 pb-2 text-[10px] font-mono uppercase tracking-[0.18em] text-gray-600">Coming soon</p>
+            <div className="space-y-1 px-3 text-xs font-mono text-gray-700">
+              <p>Custom domains</p><p>Analytics</p><p>Billing</p>
+            </div>
+          </div>
         </nav>
 
         <div className="px-3 pb-5 pt-3 border-t border-gray-800/50">
           <div className="px-3 py-2 mb-2">
-            <p className="text-gray-500 font-mono text-[10px] uppercase tracking-wider">Signed in as</p>
+            <p className="text-gray-600 font-mono text-[10px] uppercase tracking-wider">Signed in as</p>
             <p className="text-gray-300 font-mono text-xs truncate">{user.email}</p>
           </div>
           <button
             onClick={handleLogout}
             data-testid="button-logout"
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg font-mono text-xs uppercase tracking-wider text-gray-400 hover:text-white hover:bg-white/5 border border-transparent transition-colors"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg font-mono text-xs text-gray-500 hover:text-white hover:bg-white/5 transition-colors"
           >
             <LogOut className="w-4 h-4" /> Log out
           </button>
@@ -134,14 +131,14 @@ export function DashboardLayout({
       <div className="neon-bg" />
 
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex lg:flex-col fixed inset-y-0 left-0 w-64 border-r border-gray-800/50 bg-black/60 backdrop-blur-sm z-20">
+      <aside className="hidden lg:flex lg:flex-col fixed inset-y-0 left-0 w-60 border-r border-gray-800/60 bg-[#080909]/95 backdrop-blur-sm z-20">
         <SidebarContent />
       </aside>
 
       {/* Mobile top bar */}
       <div className="lg:hidden sticky top-0 z-30 flex items-center justify-between px-4 py-3 border-b border-gray-800/50 bg-black/80 backdrop-blur-sm">
         <div className="flex items-center gap-2">
-          <Bot className="w-5 h-5 text-green-400" />
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-green-400 text-black"><Bot className="w-3.5 h-3.5" /></div>
           <span className="text-white font-display font-bold text-sm">PairSite</span>
         </div>
         <button onClick={() => setMobileOpen(true)} data-testid="button-mobile-menu" className="text-gray-400 p-1">
@@ -167,7 +164,7 @@ export function DashboardLayout({
       )}
 
       {/* Main content */}
-      <main className="lg:pl-64 relative z-10">
+      <main className="lg:pl-60 relative z-10">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-10 py-8 sm:py-10">{children}</div>
       </main>
     </div>

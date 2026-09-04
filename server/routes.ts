@@ -268,7 +268,11 @@ export async function registerRoutes(
         status: "active",
       });
 
-      return res.status(201).json(site);
+      const platformDomain = (process.env.PLATFORM_DOMAIN || "pairsite.space").replace(/^https?:\/\//, "").replace(/\/$/, "");
+      return res.status(201).json({
+        ...site,
+        publicUrl: `https://${site.subdomain}.${platformDomain}`,
+      });
     } catch (err: any) {
       log(`Site creation error: ${err.message}`, "sites");
       return res.status(500).json({ error: err.message || "Internal server error" });

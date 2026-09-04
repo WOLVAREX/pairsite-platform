@@ -225,14 +225,16 @@ function useSubdomainCheck(subdomain: string) {
   return status;
 }
 
-function CreateSiteTab({ onCreated }: { onCreated: () => void }) {
+function CreateSiteTab({ user, onCreated }: { user: AuthUser; onCreated: () => void }) {
   const [name, setName] = useState("");
   const [subdomain, setSubdomain] = useState("");
   const [repoUrl, setRepoUrl] = useState("");
   const [whatsappGroupLink, setWhatsappGroupLink] = useState("");
+  const [channelLink, setChannelLink] = useState("");
   const [templateId, setTemplateId] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [createdSite, setCreatedSite] = useState<{ name: string; subdomain: string; publicUrl: string } | null>(null);
   const subdomainStatus = useSubdomainCheck(subdomain);
   const { data: templates = [] } = useQuery<SiteTemplate[]>({ queryKey: ["/api/templates"] });
 
@@ -250,6 +252,7 @@ function CreateSiteTab({ onCreated }: { onCreated: () => void }) {
         subdomain,
         repoUrl,
         whatsappGroupLink: whatsappGroupLink || undefined,
+        channelLink: channelLink || undefined,
         templateId: templateId ?? undefined,
       });
       if (!res.ok) {
@@ -258,13 +261,14 @@ function CreateSiteTab({ onCreated }: { onCreated: () => void }) {
       }
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (site) => {
       setSuccess(true);
+      setCreatedSite(site);
       setName("");
       setSubdomain("");
       setRepoUrl("");
       setWhatsappGroupLink("");
-      onCreated();
+      setChannelLink("");
     },
     onError: (err: any) => {
       setError(err.message?.replace(/^\d+:\s*/, "") || "Failed to create site");
@@ -288,7 +292,36 @@ function CreateSiteTab({ onCreated }: { onCreated: () => void }) {
 
   return (
     <div>
-      <SectionHeading title="Create a Pair Site" subtitle="Your bot's own branded WhatsApp pairing page" />
+      <SectionHeading title="Create a Pair Site" subtitle="Launch a branded pairing page on your own subdomain" />
+      {!createdSite && (
+        <div className="mb-6 flex items-center justify-between gap-4 rounded-xl border border-gray-800/60 bg-white/[0.02] px-4 py-3">
+          <div className="flex items-center gap-3">
+            <div className={`h-2.5 w-2.5 rounded-full ${user.githubUsername ? "bg-green-400" : "bg-yellow-400"}`} />
+            <div>
+              <p className="text-sm text-gray-200">{user.githubUsername ? "GitHub ownership connected" : "Connect GitHub before creating"}</p>
+              <p className="text-xs text-gray-500">Your repository owner is checked automatically before publishing.</p>
+            </div>
+          </div>
+          {!user.githubUsername && <a href="/api/auth/github" className="shrink-0 rounded-lg border border-gray-700 px-3 py-2 text-xs text-gray-300 hover:border-green-500/50 hover:text-green-300">Connect GitHub</a>}
+        </div>
+      )}
+      {createdSite && (
+        <div className="mb-6 rounded-xl border border-green-500/25 bg-green-500/[0.06] p-5">
+          <div className="flex items-start gap-3">
+            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-green-400" />
+            <div className="min-w-0 flex-1">
+              <p className="font-medium text-white">{createdSite.name} is live</p>
+              <p className="mt-1 text-sm text-gray-400">Your pair site has been created with the selected template.</p>
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                <a href={createdSite.publicUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-lg bg-green-500/15 px-3 py-2 text-sm text-green-300 hover:bg-green-500/25">
+                  <Globe className="h-4 w-4" /> {createdSite.publicUrl} <ArrowRight className="h-3.5 w-3.5" />
+                </a>
+                <button type="button" onClick={() => { setCreatedSite(null); setSuccess(false); }} className="text-xs text-gray-500 hover:text-gray-300">Create another</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         <div className="lg:col-span-3 backdrop-blur-sm bg-black/30 border border-green-500/20 rounded-xl p-6">
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -365,6 +398,18 @@ function CreateSiteTab({ onCreated }: { onCreated: () => void }) {
                 className="w-full bg-black/50 border border-gray-800/50 rounded-lg px-4 py-3 text-white font-mono text-sm placeholder-gray-700 focus:outline-none focus:border-green-500/50 transition-colors"
               />
             </div>
+            <div>
+              <label className="text-gray-400 font-mono text-xs uppercase tracking-wider mb-2 block">
+                WhatsApp Channel Link (optional)
+              </label>
+              <input
+                value={channelLink}
+                onChange={(e) => setChannelLink(e.target.value)}
+                placeholder="https://whatsapp.com/channel/..."
+                data-testid="input-site-channel"
+                className="w-full bg-black/50 border border-gray-800/50 rounded-lg px-4 py-3 text-white font-mono text-sm placeholder-gray-700 focus:outline-none focus:border-green-500/50 transition-colors"
+              />
+            </div>
             {error && (
               <p className="text-red-400 font-mono text-xs flex items-start gap-2" data-testid="text-create-site-error">
                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" /> {error}
@@ -428,7 +473,7 @@ export default function Dashboard() {
     <DashboardLayout user={user} active={tab} onNavigate={setTab}>
       {tab === "overview" && <OverviewTab user={user} sites={sites} onNavigate={setTab} />}
       {tab === "sites" && <MySitesTab sites={sites} isLoading={sitesLoading} onNavigate={setTab} />}
-      {tab === "create" && <CreateSiteTab onCreated={() => setTab("sites")} />}
+      {tab === "create" && <CreateSiteTab user={user} onCreated={() => setTab("sites")} />}
     </DashboardLayout>
   );
 }
