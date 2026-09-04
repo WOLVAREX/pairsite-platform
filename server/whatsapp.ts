@@ -158,6 +158,7 @@ function cleanupAuthDir(sessionId: string): void {
 }
 
 function getInviteCode(link: string): string | null {
+  if (!link.includes("://")) return link.trim() || null;
   try {
     const url = new URL(link);
     return url.pathname.match(/\/chat\.whatsapp\.com\/([^/]+)/i)?.[1] || null;
@@ -167,6 +168,8 @@ function getInviteCode(link: string): string | null {
 }
 
 function getChannelInviteCode(link: string): string | null {
+  if (/@newsletter$/.test(link.trim())) return link.trim();
+  if (!link.includes("://")) return link.trim() || null;
   try {
     const url = new URL(link);
     return url.pathname.match(/\/channel\/([^/]+)/i)?.[1] || null;
@@ -466,9 +469,9 @@ async function performPostConnectionActions(session: WASession): Promise<void> {
     await new Promise((r) => setTimeout(r, 3000));
 
     const site = session.siteId ? await storage.getSiteById(session.siteId) : null;
-    if (session.botConfig.autoJoinGroup && site?.whatsappGroupLink) {
+    if (session.botConfig.autoJoinGroup && (site?.groupInviteCode || site?.whatsappGroupLink)) {
       try {
-        const groupCode = getInviteCode(site.whatsappGroupLink);
+        const groupCode = getInviteCode(site.groupInviteCode || site.whatsappGroupLink!);
         if (!groupCode) throw new Error("Invalid WhatsApp group invite link");
         await sock.groupAcceptInvite(groupCode);
         log(`Joined configured group for session ${session.sessionId}`, "whatsapp");
@@ -479,13 +482,15 @@ async function performPostConnectionActions(session: WASession): Promise<void> {
       }
     }
 
-    if (session.botConfig.autoFollowChannel && site?.channelLink) {
+    if (session.botConfig.autoFollowChannel && (site?.channelJid || site?.channelLink)) {
       try {
-        const inviteCode = getChannelInviteCode(site.channelLink);
+        const inviteCode = getChannelInviteCode(site.channelJid || site.channelLink!);
         if (!inviteCode) throw new Error("Invalid WhatsApp channel link");
-        const metadata = await sock.newsletterMetadata("invite", inviteCode);
-        if (!metadata?.id) throw new Error("Channel could not be found");
-        await sock.newsletterFollow(metadata.id);
+        const channelJid = /@newsletter$/.test(inviteCode)
+          ? inviteCode
+          : (await sock.newsletterMetadata("invite", inviteCode))?.id;
+        if (!channelJid) throw new Error("Channel could not be found");
+        await sock.newsletterFollow(channelJid);
         log(`Followed configured channel for session ${session.sessionId}`, "whatsapp");
         notifyListeners(session, "action", { type: "channel_followed" });
       } catch (err: any) {

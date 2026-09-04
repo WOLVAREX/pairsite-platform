@@ -117,6 +117,7 @@ import { createServer } from "http";
 import { pool } from "./db";
 import { configurePassport } from "./auth";
 import { resolveTenant } from "./tenant";
+import { storage } from "./storage";
 
 const app = express();
 const httpServer = createServer(app);
@@ -204,6 +205,7 @@ app.use((req, res, next) => {
 
 (async () => {
   try {
+    await storage.ensureDefaultTemplates();
     await registerRoutes(httpServer, app);
 
     // Add a simple health check endpoint

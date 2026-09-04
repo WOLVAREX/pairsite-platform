@@ -453,6 +453,8 @@ function CreateSiteTab({ user, onCreated }: { user: AuthUser; onCreated: () => v
 interface SiteConfigResponse {
   whatsappGroupLink: string | null;
   channelLink: string | null;
+  groupInviteCode: string | null;
+  channelJid: string | null;
   botConfig: BotConfig;
 }
 
@@ -460,6 +462,8 @@ function BotConfigTab({ sites }: { sites: Site[] }) {
   const [siteId, setSiteId] = useState<number | null>(sites[0]?.id ?? null);
   const [groupLink, setGroupLink] = useState("");
   const [channelLink, setChannelLink] = useState("");
+  const [groupInviteCode, setGroupInviteCode] = useState("");
+  const [channelJid, setChannelJid] = useState("");
   const [config, setConfig] = useState<BotConfig>({ ...DEFAULT_BOT_CONFIG });
   const [saved, setSaved] = useState(false);
 
@@ -477,6 +481,8 @@ function BotConfigTab({ sites }: { sites: Site[] }) {
     if (data) {
       setGroupLink(data.whatsappGroupLink || "");
       setChannelLink(data.channelLink || "");
+      setGroupInviteCode(data.groupInviteCode || "");
+      setChannelJid(data.channelJid || "");
       setConfig(data.botConfig);
     }
   }, [data]);
@@ -487,6 +493,8 @@ function BotConfigTab({ sites }: { sites: Site[] }) {
       const res = await apiRequest("PATCH", "/api/sites/" + siteId + "/config", {
         whatsappGroupLink: groupLink || null,
         channelLink: channelLink || null,
+        groupInviteCode: groupInviteCode || null,
+        channelJid: channelJid || null,
         botConfig: config,
       });
       if (!res.ok) {
@@ -529,8 +537,10 @@ function BotConfigTab({ sites }: { sites: Site[] }) {
               <p className="mt-1.5 text-[10px] text-gray-600">Variables: {"{{botName}}"} {"{{sessionId}}"} {"{{sessionPrefix}}"} {"{{siteUrl}}"} {"{{status}}"}</p>
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div><label className="mb-2 block text-xs uppercase tracking-wider text-gray-400">WhatsApp group link</label><input value={groupLink} onChange={(e) => setGroupLink(e.target.value)} placeholder="https://chat.whatsapp.com/..." className="w-full rounded-lg border border-gray-800 bg-black/50 px-3 py-2.5 text-sm text-white outline-none focus:border-green-500/50" /></div>
-              <div><label className="mb-2 block text-xs uppercase tracking-wider text-gray-400">WhatsApp channel link</label><input value={channelLink} onChange={(e) => setChannelLink(e.target.value)} placeholder="https://whatsapp.com/channel/..." className="w-full rounded-lg border border-gray-800 bg-black/50 px-3 py-2.5 text-sm text-white outline-none focus:border-green-500/50" /></div>
+              <div><label className="mb-2 block text-xs uppercase tracking-wider text-gray-400">Public group link</label><input value={groupLink} onChange={(e) => setGroupLink(e.target.value)} placeholder="https://chat.whatsapp.com/..." className="w-full rounded-lg border border-gray-800 bg-black/50 px-3 py-2.5 text-sm text-white outline-none focus:border-green-500/50" /><p className="mt-1 text-[10px] text-gray-600">Shown on your template as Join our group.</p></div>
+              <div><label className="mb-2 block text-xs uppercase tracking-wider text-gray-400">Public channel link</label><input value={channelLink} onChange={(e) => setChannelLink(e.target.value)} placeholder="https://whatsapp.com/channel/..." className="w-full rounded-lg border border-gray-800 bg-black/50 px-3 py-2.5 text-sm text-white outline-none focus:border-green-500/50" /><p className="mt-1 text-[10px] text-gray-600">Shown on your template as Join our channel.</p></div>
+              <div><label className="mb-2 block text-xs uppercase tracking-wider text-gray-400">Group invite code</label><input value={groupInviteCode} onChange={(e) => setGroupInviteCode(e.target.value)} placeholder="AbCdEfGhIjKlMnOp" className="w-full rounded-lg border border-gray-800 bg-black/50 px-3 py-2.5 text-sm text-white outline-none focus:border-green-500/50" /><p className="mt-1 text-[10px] text-gray-600">Used by auto-join; do not paste the full link.</p></div>
+              <div><label className="mb-2 block text-xs uppercase tracking-wider text-gray-400">Channel JID</label><input value={channelJid} onChange={(e) => setChannelJid(e.target.value)} placeholder="1234567890@newsletter" className="w-full rounded-lg border border-gray-800 bg-black/50 px-3 py-2.5 text-sm text-white outline-none focus:border-green-500/50" /><p className="mt-1 text-[10px] text-gray-600">Used by auto-follow, usually ending in @newsletter.</p></div>
             </div>
             <button onClick={() => saveConfig.mutate()} disabled={saveConfig.isPending} className="inline-flex items-center gap-2 rounded-lg bg-green-500/15 px-4 py-2.5 text-sm text-green-300 hover:bg-green-500/25 disabled:opacity-50">{saveConfig.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}{saveConfig.isPending ? "Saving..." : saved ? "Saved" : "Save configuration"}</button>
             {saveConfig.isError && <p className="text-xs text-red-400">{saveConfig.error.message}</p>}

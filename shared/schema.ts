@@ -135,6 +135,8 @@ export const sites = pgTable("sites", {
   verificationStatus: varchar("verification_status", { length: 20 }).notNull().default("pending"),
   whatsappGroupLink: varchar("whatsapp_group_link", { length: 500 }),
   channelLink: varchar("channel_link", { length: 500 }),
+  groupInviteCode: varchar("group_invite_code", { length: 200 }),
+  channelJid: varchar("channel_jid", { length: 200 }),
   messageTemplates: jsonb("message_templates"),
   status: varchar("status", { length: 20 }).notNull().default("active"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -180,6 +182,8 @@ export const botConfigSchema = z.object({
 export const siteConfigSchema = z.object({
   whatsappGroupLink: z.string().url().nullable().optional(),
   channelLink: z.string().url().nullable().optional(),
+  groupInviteCode: z.string().trim().max(200).nullable().optional(),
+  channelJid: z.string().trim().max(200).nullable().optional(),
   botConfig: botConfigSchema,
 });
 

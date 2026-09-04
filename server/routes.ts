@@ -185,6 +185,8 @@ export async function registerRoutes(
     return res.json({
       whatsappGroupLink: site.whatsappGroupLink,
       channelLink: site.channelLink,
+      groupInviteCode: site.groupInviteCode,
+      channelJid: site.channelJid,
       botConfig: getBotConfig(site),
     });
   });
@@ -198,11 +200,15 @@ export async function registerRoutes(
       const updated = await storage.updateSite(site.id, {
         whatsappGroupLink: parsed.data.whatsappGroupLink ?? null,
         channelLink: parsed.data.channelLink ?? null,
+        groupInviteCode: parsed.data.groupInviteCode ?? null,
+        channelJid: parsed.data.channelJid ?? null,
         messageTemplates: parsed.data.botConfig,
       });
       return res.json({
         whatsappGroupLink: updated?.whatsappGroupLink ?? null,
         channelLink: updated?.channelLink ?? null,
+        groupInviteCode: updated?.groupInviteCode ?? null,
+        channelJid: updated?.channelJid ?? null,
         botConfig: getBotConfig(updated),
       });
     } catch (err: any) {

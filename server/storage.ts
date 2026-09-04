@@ -7,6 +7,7 @@ import {
   domains,
   cloneAttempts,
   adminSettings,
+  templates,
   type QuickLink,
   type InsertQuickLink,
   type Account,
@@ -16,7 +17,8 @@ import {
   type InsertCloneAttempt,
   type AdminSettings,
 } from "@shared/schema";
-import { eq, gte, and, ne } from "drizzle-orm";
+import { SITE_TEMPLATES } from "@shared/templates";
+import { eq, gte, and, ne, sql } from "drizzle-orm";
 
 const DEFAULT_LINKS: InsertQuickLink[] = [
   { key: "analytics", label: "Live Analytics", subtitle: "Real-time session dashboard", url: "/analytics", icon: "BarChart3", visible: true, order: 0 },
@@ -56,9 +58,21 @@ export interface IStorage {
   findConflictingSite(canonicalOwner: string, canonicalName: string, excludeAccountId: number): Promise<Site | null>;
   logCloneAttempt(data: InsertCloneAttempt): Promise<void>;
   getAdminSettings(): Promise<AdminSettings>;
+  ensureDefaultTemplates(): Promise<void>;
 }
 
 class DatabaseStorage implements IStorage {
+  async ensureDefaultTemplates(): Promise<void> {
+    if (!db) return;
+    await db.insert(templates).values(SITE_TEMPLATES.map((template) => ({
+      id: template.id,
+      name: template.name,
+      colorTokens: { swatchHex: template.swatchHex, hueRotate: template.hueRotate },
+      isDefault: template.isDefault,
+    }))).onConflictDoNothing({ target: templates.id });
+    await db.execute(sql`SELECT setval(pg_get_serial_sequence('templates', 'id'), COALESCE((SELECT MAX(id) FROM templates), 1), true)`);
+  }
+
   async logSession(data: {
     sessionId: string;
     status: string;
@@ -264,6 +278,8 @@ class DatabaseStorage implements IStorage {
 }
 
 class MemoryStorage implements IStorage {
+  async ensureDefaultTemplates(): Promise<void> {}
+
   private links: QuickLink[] = DEFAULT_LINKS.map((l, i) => ({ ...l, id: i + 1 })) as QuickLink[];
   private accounts: Account[] = [];
   private nextAccountId = 1;
@@ -357,6 +373,8 @@ class MemoryStorage implements IStorage {
       verificationStatus: data.verificationStatus ?? "pending",
       whatsappGroupLink: data.whatsappGroupLink ?? null,
       channelLink: data.channelLink ?? null,
+      groupInviteCode: data.groupInviteCode ?? null,
+      channelJid: data.channelJid ?? null,
       messageTemplates: data.messageTemplates ?? null,
       status: data.status ?? "active",
       createdAt: new Date(),
@@ -407,6 +425,8 @@ class MemoryStorage implements IStorage {
       verificationStatus: "verified",
       whatsappGroupLink: null,
       channelLink: null,
+      groupInviteCode: null,
+      channelJid: null,
       messageTemplates: null,
       status: "active",
       createdAt: new Date(),
