@@ -17,6 +17,7 @@ function Router() {
     <Switch>
       <Route path="/" component={RootGate} />
       <Route path="/landing" component={Landing} />
+      <Route path="/analytics/:siteId" component={Analytics} />
       <Route path="/analytics" component={Analytics} />
       <Route path="/admin" component={Admin} />
       <Route path="/signup" component={Signup} />

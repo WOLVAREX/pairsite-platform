@@ -574,6 +574,10 @@ function BillingTab() {
   return <div><SectionHeading title="Billing" subtitle="One month free, then KSh 100 per additional pair site" /><div className="max-w-xl rounded-xl border border-gray-800/60 bg-black/20 p-6 space-y-4"><div className="flex items-center justify-between"><span className="text-gray-400">Trial</span><span className={data?.trialActive ? "text-green-400" : "text-red-400"}>{data?.trialActive ? "Active" : "Expired"}</span></div><div className="flex items-center justify-between"><span className="text-gray-400">Sites</span><span className="text-white">{data?.siteCount} / {data?.siteLimit}</span></div><div className="flex items-center justify-between"><span className="text-gray-400">Available site credits</span><span className="text-white">{data?.siteCredits || 0}</span></div><button onClick={() => pay.mutate()} disabled={pay.isPending} className="inline-flex items-center gap-2 rounded-lg bg-green-500/15 px-4 py-3 text-green-300 hover:bg-green-500/25 disabled:opacity-50"><CreditCard className="h-4 w-4" />{pay.isPending ? "Opening Paystack..." : `Pay ${data?.currency || "KES"} ${((data?.priceMinor || 10000) / 100).toFixed(2)} for another site`}</button>{pay.isError && <p className="text-xs text-red-400">Payment could not be started. Check Paystack configuration.</p>}</div></div>;
 }
 
+function AnalyticsTab({ sites }: { sites: Site[] }) {
+  return <div><SectionHeading title="Pair-site analytics" subtitle="Choose a site to view its sessions and activity" /><div className="grid gap-3 sm:grid-cols-2">{sites.map((site) => <a key={site.id} href={`/analytics/${site.id}`} className="rounded-xl border border-gray-800/60 bg-black/20 p-5 hover:border-green-500/30"><p className="text-white font-medium">{site.name}</p><p className="mt-1 text-xs text-gray-500">{site.subdomain}.pairsite.space</p><p className="mt-4 text-xs text-green-400">Open analytics →</p></a>)}</div></div>;
+}
+
 function CustomizeTab({ sites }: { sites: Site[] }) {
   const [siteId, setSiteId] = useState<number | null>(sites[0]?.id ?? null); const [ui, setUi] = useState<SiteUiConfig>({ ...DEFAULT_SITE_UI_CONFIG }); const [bot, setBot] = useState<BotConfig>({ ...DEFAULT_BOT_CONFIG });
   const { data } = useQuery<SiteConfigResponse>({ queryKey: ["/api/sites/" + siteId + "/config"], enabled: siteId !== null });
@@ -620,7 +624,7 @@ export default function Dashboard() {
       {tab === "customize" && <CustomizeTab sites={sites} />}
       {tab === "billing" && <BillingTab />}
       {tab === "domain" && <DomainTab sites={sites} />}
-      {tab === "analytics" && <div><SectionHeading title="Analytics" subtitle="Live platform session activity" /><a href="/analytics" className="text-green-400 underline">Open analytics dashboard</a></div>}
+      {tab === "analytics" && <AnalyticsTab sites={sites} />}
     </DashboardLayout>
   );
 }

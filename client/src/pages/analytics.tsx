@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
-import { Link } from "wouter";
+import { Link, useLocation, useRoute } from "wouter";
+import { getQueryFn } from "@/lib/queryClient";
 import {
   Wifi,
   Activity,
@@ -190,12 +191,15 @@ function formatDate(iso: string): string {
 }
 
 export default function Analytics() {
-  const [siteId, setSiteId] = useState<number | null>(null);
-  const { data: sites = [] } = useQuery<{ id: number; name: string; subdomain: string }[]>({ queryKey: ["/api/sites"] });
-  useEffect(() => { if (siteId === null && sites[0]) setSiteId(sites[0].id); }, [sites, siteId]);
+  const [, setLocation] = useLocation();
+  const [, params] = useRoute<{ siteId: string }>("/analytics/:siteId");
+  const [siteId, setSiteId] = useState<number | null>(params?.siteId ? Number(params.siteId) : null);
+  const { data: user, isLoading: userLoading } = useQuery({ queryKey: ["/api/auth/me"], queryFn: getQueryFn({ on401: "returnNull" }) });
+  const { data: sites = [], isLoading: sitesLoading } = useQuery<{ id: number; name: string; subdomain: string }[]>({ queryKey: ["/api/sites"], enabled: !!user });
+  useEffect(() => { if (params?.siteId) setSiteId(Number(params.siteId)); else if (sites[0]) setLocation(`/analytics/${sites[0].id}`); }, [params?.siteId, sites, setLocation]);
   const { data, isLoading, dataUpdatedAt, refetch, isRefetching } = useQuery<AnalyticsData>({
     queryKey: [siteId ? `/api/analytics?siteId=${siteId}` : "/api/analytics"],
-    enabled: siteId !== null,
+    enabled: siteId !== null && !!user,
     refetchInterval: 3000,
   });
 
@@ -207,6 +211,8 @@ export default function Analytics() {
         hour12: true,
       })
     : null;
+
+  if (userLoading || sitesLoading || !user || siteId === null) return <div className="min-h-screen bg-black flex items-center justify-center text-gray-500 font-mono text-sm">{userLoading ? "Loading analytics..." : "Sign in to view your pair-site analytics."}</div>;
 
   return (
     <div className="min-h-screen bg-black text-white relative overflow-hidden">
@@ -228,7 +234,7 @@ export default function Analytics() {
               <h1 className="text-xl sm:text-2xl font-bold font-display tracking-tight">
                 <GlowText>WOLF</GlowText>
                 <span className="text-white">BOT</span>
-                <span className="text-gray-500 font-normal font-mono ml-2">/ Analytics</span>
+                <span className="text-gray-500 font-normal font-mono ml-2">/ {sites.find((site) => site.id === siteId)?.name || "Pair site"} analytics</span>
               </h1>
               <p className="text-gray-600 text-[10px] font-mono mt-0.5">
                 Live session tracking — auto-refreshes every 3s
@@ -270,6 +276,10 @@ export default function Analytics() {
             </button>
           </div>
         </div>
+
+        <select value={siteId} onChange={(e) => { const next = Number(e.target.value); setSiteId(next); setLocation(`/analytics/${next}`); }} className="mb-6 rounded-lg border border-gray-800 bg-black px-3 py-2 text-sm text-white">
+          {sites.map((site) => <option key={site.id} value={site.id}>{site.name} · {site.subdomain}.pairsite.space</option>)}
+        </select>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <StatCard
