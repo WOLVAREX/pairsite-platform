@@ -336,13 +336,6 @@ export default function Home({ site }: { site: Site }) {
         </nav>
 
         <header className="text-center mb-8 sm:mb-14">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-[#00ff00]/30 bg-[#00ff00]/5 mb-6 animate-fade-in-down">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#00ff00] animate-blink-dot" />
-            <Bot className="w-3.5 h-3.5" style={{ color: "#00ff00" }} />
-            <span className="font-mono text-xs tracking-wider" style={{ color: "#00ff00" }} data-testid="text-version">
-              v2.0.0-beta
-            </span>
-          </div>
           <h1 className="text-3xl sm:text-5xl lg:text-6xl font-bold mb-4 tracking-tight font-display animate-fade-in-up">
             <GlowText>{site.name}</GlowText>
           </h1>
@@ -702,8 +695,8 @@ export default function Home({ site }: { site: Site }) {
             <Bot className="w-4 h-4 text-green-500/40" />
             <span className="font-mono text-xs text-gray-600">{site.name} Pair</span>
           </div>
-          <p className="text-gray-700 text-[10px] font-mono">
-            Built with security in mind. All connections are end-to-end encrypted.
+          <p className="text-gray-500 text-xs font-mono">
+            Powered by WOLF TECH a WOLVAREX Company.
           </p>
         </footer>
       </div>
