@@ -242,6 +242,11 @@
 }
 .ui-static-background .neon-bg::after { animation: none; }
 .app-shell .neon-bg { opacity: var(--pairsite-glow, 0.55); }
+.app-shell { background: var(--pairsite-bg, #050706); color: var(--pairsite-text, #f3f4f6); }
+.app-shell .text-green-400, .app-shell .text-green-300, .app-shell .text-green-500 { color: var(--pairsite-accent, #22c55e) !important; }
+.app-shell .border-green-500\/20, .app-shell .border-green-500\/30 { border-color: color-mix(in srgb, var(--pairsite-accent, #22c55e) 30%, transparent) !important; }
+.app-shell .bg-black\/30, .app-shell .bg-black\/20 { background-color: color-mix(in srgb, var(--pairsite-panel, #0b120d) 84%, transparent) !important; }
+.app-shell .rounded-xl, .app-shell .rounded-lg { border-radius: var(--pairsite-radius, 12px); }
 
 .app-topbar {
   background: rgba(5, 7, 6, 0.94);

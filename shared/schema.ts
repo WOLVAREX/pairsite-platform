@@ -154,16 +154,23 @@ export type InsertSite = typeof insertSiteSchema._type;
 export type Site = typeof sites.$inferSelect;
 
 export interface SiteUiConfig {
+  accentColor: string;
+  backgroundColor: string;
+  panelColor: string;
+  textColor: string;
+  borderRadius: number;
+  fontFamily: "mono" | "display" | "sans";
   glowIntensity: number;
   scanlines: boolean;
   animatedBackground: boolean;
   cardStyle: "soft" | "sharp" | "glass";
 }
 
-export const DEFAULT_SITE_UI_CONFIG: SiteUiConfig = { glowIntensity: 55, scanlines: true, animatedBackground: true, cardStyle: "soft" };
+export const DEFAULT_SITE_UI_CONFIG: SiteUiConfig = { accentColor: "#22c55e", backgroundColor: "#050706", panelColor: "#0b120d", textColor: "#f3f4f6", borderRadius: 12, fontFamily: "mono", glowIntensity: 55, scanlines: true, animatedBackground: true, cardStyle: "soft" };
 export function getSiteUiConfig(site: Pick<Site, "uiConfig"> | null | undefined): SiteUiConfig {
   const raw = site?.uiConfig && typeof site.uiConfig === "object" && !Array.isArray(site.uiConfig) ? site.uiConfig as Record<string, unknown> : {};
-  return { glowIntensity: typeof raw.glowIntensity === "number" ? Math.max(0, Math.min(100, raw.glowIntensity)) : DEFAULT_SITE_UI_CONFIG.glowIntensity, scanlines: typeof raw.scanlines === "boolean" ? raw.scanlines : DEFAULT_SITE_UI_CONFIG.scanlines, animatedBackground: typeof raw.animatedBackground === "boolean" ? raw.animatedBackground : DEFAULT_SITE_UI_CONFIG.animatedBackground, cardStyle: raw.cardStyle === "sharp" || raw.cardStyle === "glass" ? raw.cardStyle : DEFAULT_SITE_UI_CONFIG.cardStyle };
+  const color = (value: unknown, fallback: string) => typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value) ? value : fallback;
+  return { accentColor: color(raw.accentColor, DEFAULT_SITE_UI_CONFIG.accentColor), backgroundColor: color(raw.backgroundColor, DEFAULT_SITE_UI_CONFIG.backgroundColor), panelColor: color(raw.panelColor, DEFAULT_SITE_UI_CONFIG.panelColor), textColor: color(raw.textColor, DEFAULT_SITE_UI_CONFIG.textColor), borderRadius: typeof raw.borderRadius === "number" ? Math.max(0, Math.min(32, raw.borderRadius)) : DEFAULT_SITE_UI_CONFIG.borderRadius, fontFamily: raw.fontFamily === "display" || raw.fontFamily === "sans" ? raw.fontFamily : DEFAULT_SITE_UI_CONFIG.fontFamily, glowIntensity: typeof raw.glowIntensity === "number" ? Math.max(0, Math.min(100, raw.glowIntensity)) : DEFAULT_SITE_UI_CONFIG.glowIntensity, scanlines: typeof raw.scanlines === "boolean" ? raw.scanlines : DEFAULT_SITE_UI_CONFIG.scanlines, animatedBackground: typeof raw.animatedBackground === "boolean" ? raw.animatedBackground : DEFAULT_SITE_UI_CONFIG.animatedBackground, cardStyle: raw.cardStyle === "sharp" || raw.cardStyle === "glass" ? raw.cardStyle : DEFAULT_SITE_UI_CONFIG.cardStyle };
 }
 
 export interface BotConfig {
@@ -205,7 +212,7 @@ export const siteConfigSchema = z.object({
   groupInviteCode: z.string().trim().max(200).nullable().optional(),
   channelJid: z.string().trim().max(200).nullable().optional(),
   botConfig: botConfigSchema,
-  uiConfig: z.object({ glowIntensity: z.number().min(0).max(100), scanlines: z.boolean(), animatedBackground: z.boolean(), cardStyle: z.enum(["soft", "sharp", "glass"]) }).optional(),
+  uiConfig: z.object({ accentColor: z.string().regex(/^#[0-9a-f]{6}$/i), backgroundColor: z.string().regex(/^#[0-9a-f]{6}$/i), panelColor: z.string().regex(/^#[0-9a-f]{6}$/i), textColor: z.string().regex(/^#[0-9a-f]{6}$/i), borderRadius: z.number().min(0).max(32), fontFamily: z.enum(["mono", "display", "sans"]), glowIntensity: z.number().min(0).max(100), scanlines: z.boolean(), animatedBackground: z.boolean(), cardStyle: z.enum(["soft", "sharp", "glass"]) }).optional(),
 });
 
 export const updateSiteSchema = z.object({

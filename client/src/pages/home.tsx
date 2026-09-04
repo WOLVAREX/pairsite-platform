@@ -315,7 +315,7 @@ export default function Home({ site }: { site: Site }) {
   return (
     <div
       className={`min-h-screen app-shell text-white relative overflow-hidden ${uiConfig.scanlines ? "ui-scanlines" : ""} ${uiConfig.animatedBackground ? "" : "ui-static-background"}`}
-      style={{ ...(template.hueRotate !== 0 ? { filter: `hue-rotate(${template.hueRotate}deg)` } : {}), "--pairsite-glow": `${uiConfig.glowIntensity / 100}` } as React.CSSProperties}
+      style={{ ...(template.hueRotate !== 0 ? { filter: `hue-rotate(${template.hueRotate}deg)` } : {}), "--pairsite-glow": `${uiConfig.glowIntensity / 100}`, "--pairsite-accent": uiConfig.accentColor, "--pairsite-bg": uiConfig.backgroundColor, "--pairsite-panel": uiConfig.panelColor, "--pairsite-text": uiConfig.textColor, "--pairsite-radius": `${uiConfig.borderRadius}px`, fontFamily: uiConfig.fontFamily === "display" ? "Orbitron, sans-serif" : uiConfig.fontFamily === "sans" ? "Inter, sans-serif" : "JetBrains Mono, monospace" } as React.CSSProperties}
     >
       <div className="neon-bg" />
 
