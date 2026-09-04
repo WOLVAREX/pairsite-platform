@@ -18,8 +18,8 @@ import { sendCloneAttemptEmails } from "./email";
 import { SITE_TEMPLATES, isValidTemplateId } from "@shared/templates";
 import { log } from "./index";
 import { db } from "./db";
-import { accounts, adminSettings, domains, payments, sites } from "@shared/schema";
-import { eq, desc, count } from "drizzle-orm";
+import { accounts, adminSettings, domains, payments, sites, sessionsLog } from "@shared/schema";
+import { eq, desc, count, inArray, and } from "drizzle-orm";
 import crypto from "node:crypto";
 import { resolveTxt } from "node:dns/promises";
 
@@ -461,18 +461,22 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/analytics", async (_req, res) => {
+  app.get("/api/analytics", requireAuth, async (req, res) => {
     try {
-      const memory = getAnalytics();
-      const dbData = await storage.getDbAnalytics();
+      const requestedSiteId = req.query.siteId ? Number(req.query.siteId) : null;
+      const ownedSites = await storage.getSitesByAccount(req.user!.id);
+      if (requestedSiteId !== null && !ownedSites.some((site) => site.id === requestedSiteId)) return res.status(404).json({ error: "Site not found" });
+      const memory = getAnalytics(requestedSiteId);
+      const dbData = db ? await db.select().from(sessionsLog).where(requestedSiteId ? eq(sessionsLog.siteId, requestedSiteId) : inArray(sessionsLog.siteId, ownedSites.map((site) => site.id))) : [];
+      const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 
       return res.json({
         connected: memory.connected,
         active: memory.active,
-        inactive: dbData ? dbData.inactive : memory.inactive,
-        totalThisMonth: dbData ? dbData.totalThisMonth : memory.totalThisMonth,
+        inactive: db ? dbData.filter((row) => row.status === "terminated" || row.status === "failed").length : memory.inactive,
+        totalThisMonth: db ? dbData.filter((row) => row.createdAt >= monthStart).length : memory.totalThisMonth,
         sessions: memory.sessions,
-        persistedData: dbData !== null,
+        persistedData: db !== null,
       });
     } catch (err: any) {
       return res.status(500).json({ error: err.message || "Internal server error" });

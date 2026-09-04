@@ -65,6 +65,7 @@ interface SessionRecord {
   connectionMethod: "pairing" | "qr";
   createdAt: string;
   linkedAt: string | null;
+  siteId?: number | null;
 }
 
 const sessionHistory: SessionRecord[] = [];
@@ -81,6 +82,7 @@ function recordSession(session: WASession): void {
       connectionMethod: session.connectionMethod,
       createdAt: session.createdAt,
       linkedAt: session.linkedAt,
+      siteId: session.siteId ?? null,
     });
   }
 
@@ -100,11 +102,11 @@ function recordSession(session: WASession): void {
   });
 }
 
-export function getAnalytics() {
+export function getAnalytics(siteId?: number | null) {
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
 
-  const allSessions = Array.from(activeSessions.values()).map((s) => ({
+  const allSessions = Array.from(activeSessions.values()).filter((s) => siteId == null || s.siteId === siteId).map((s) => ({
     sessionId: s.sessionId,
     status: s.status,
     connectionMethod: s.connectionMethod,
@@ -112,11 +114,12 @@ export function getAnalytics() {
     linkedAt: s.linkedAt,
   }));
 
-  const historyThisMonth = sessionHistory.filter((r) => r.createdAt >= startOfMonth);
+  const history = sessionHistory.filter((r) => siteId == null || r.siteId === siteId);
+  const historyThisMonth = history.filter((r) => r.createdAt >= startOfMonth);
 
   const connected = allSessions.filter((s) => s.status === "connected").length;
   const active = allSessions.filter((s) => s.status === "pending" || s.status === "connecting").length;
-  const inactive = sessionHistory.filter(
+  const inactive = history.filter(
     (r) => r.status === "terminated" || r.status === "failed"
   ).length;
   const totalThisMonth = historyThisMonth.length;

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">PairSite</title>
+  <desc id="desc">Branded WhatsApp pairing sites</desc>
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#07130b"/><stop offset="1" stop-color="#102d18"/></linearGradient><filter id="glow"><feGaussianBlur stdDeviation="10" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+  <rect width="1200" height="630" fill="#050706"/><rect x="28" y="28" width="1144" height="574" rx="32" fill="url(#g)" stroke="#20c968" stroke-opacity=".35"/>
+  <circle cx="1030" cy="120" r="170" fill="#19b957" opacity=".08"/><circle cx="1030" cy="120" r="90" fill="#19b957" opacity=".1" filter="url(#glow)"/>
+  <text x="100" y="250" fill="#26d36d" font-family="Arial, sans-serif" font-size="92" font-weight="700">PairSite</text>
+  <text x="105" y="325" fill="#d9fbe5" font-family="Arial, sans-serif" font-size="34">Your branded WhatsApp pairing site.</text>
+  <text x="105" y="390" fill="#759982" font-family="monospace" font-size="22">Custom domains  ·  Analytics  ·  Secure sessions</text>
+  <path d="M1010 260a78 78 0 1 0 0 156 78 78 0 0 0 0-156zm-35 78h70m-35-35v70" fill="none" stroke="#2be477" stroke-width="12" stroke-linecap="round"/>
+</svg>

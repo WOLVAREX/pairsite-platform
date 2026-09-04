@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import {
   Wifi,
@@ -189,8 +190,12 @@ function formatDate(iso: string): string {
 }
 
 export default function Analytics() {
+  const [siteId, setSiteId] = useState<number | null>(null);
+  const { data: sites = [] } = useQuery<{ id: number; name: string; subdomain: string }[]>({ queryKey: ["/api/sites"] });
+  useEffect(() => { if (siteId === null && sites[0]) setSiteId(sites[0].id); }, [sites, siteId]);
   const { data, isLoading, dataUpdatedAt, refetch, isRefetching } = useQuery<AnalyticsData>({
-    queryKey: ["/api/analytics"],
+    queryKey: [siteId ? `/api/analytics?siteId=${siteId}` : "/api/analytics"],
+    enabled: siteId !== null,
     refetchInterval: 3000,
   });
 
