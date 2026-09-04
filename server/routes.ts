@@ -14,11 +14,11 @@ import {
 import { storage } from "./storage";
 import { hashPassword, requireAuth } from "./auth";
 import { parseRepoUrl, fetchRepoInfo, canonicalIdentity, RepoNotFoundError, GitHubApiError } from "./github";
-import { sendCloneAttemptEmails } from "./email";
+import { sendCloneAttemptEmails, sendWelcomeEmail, sendSiteCreatedEmail } from "./email";
 import { SITE_TEMPLATES, isValidTemplateId } from "@shared/templates";
 import { log } from "./index";
 import { db } from "./db";
-import { accounts, adminSettings, domains, payments, sites, sessionsLog } from "@shared/schema";
+import { accounts, adminSettings, domains, payments, sites, sessionsLog, getSiteUiConfig } from "@shared/schema";
 import { eq, desc, count, inArray, and } from "drizzle-orm";
 import crypto from "node:crypto";
 import { resolveTxt } from "node:dns/promises";
@@ -99,6 +99,7 @@ export async function registerRoutes(
         passwordHash,
         plan: "free",
       });
+      sendWelcomeEmail(account.email).catch((err) => log(`Welcome email error: ${err.message}`, "email"));
 
       req.login(
         { id: account.id, email: account.email, plan: account.plan as any, githubUsername: account.githubUsername },
@@ -233,6 +234,7 @@ export async function registerRoutes(
       groupInviteCode: site.groupInviteCode,
       channelJid: site.channelJid,
       botConfig: getBotConfig(site),
+      uiConfig: getSiteUiConfig(site),
     });
   });
 
@@ -248,6 +250,7 @@ export async function registerRoutes(
         groupInviteCode: parsed.data.groupInviteCode ?? null,
         channelJid: parsed.data.channelJid ?? null,
         messageTemplates: parsed.data.botConfig,
+        ...(parsed.data.uiConfig ? { uiConfig: parsed.data.uiConfig } : {}),
       });
       return res.json({
         whatsappGroupLink: updated?.whatsappGroupLink ?? null,
@@ -255,6 +258,7 @@ export async function registerRoutes(
         groupInviteCode: updated?.groupInviteCode ?? null,
         channelJid: updated?.channelJid ?? null,
         botConfig: getBotConfig(updated),
+        uiConfig: getSiteUiConfig(updated),
       });
     } catch (err: any) {
       log(`Bot config update error: ${err.message}`, "sites");
@@ -365,6 +369,7 @@ export async function registerRoutes(
         status: "active",
         expiresAt: siteExpiresAt,
       });
+      sendSiteCreatedEmail(account.email, site).catch((err) => log(`Site-created email error: ${err.message}`, "email"));
 
       if (db) {
         const [accountRow] = await db.select().from(accounts).where(eq(accounts.id, account.id)).limit(1);

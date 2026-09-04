@@ -143,6 +143,7 @@ export const sites = pgTable("sites", {
   groupInviteCode: varchar("group_invite_code", { length: 200 }),
   channelJid: varchar("channel_jid", { length: 200 }),
   messageTemplates: jsonb("message_templates"),
+  uiConfig: jsonb("ui_config"),
   status: varchar("status", { length: 20 }).notNull().default("active"),
   expiresAt: timestamp("expires_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -151,6 +152,19 @@ export const sites = pgTable("sites", {
 export const insertSiteSchema = createInsertSchema(sites).omit({ id: true, createdAt: true });
 export type InsertSite = typeof insertSiteSchema._type;
 export type Site = typeof sites.$inferSelect;
+
+export interface SiteUiConfig {
+  glowIntensity: number;
+  scanlines: boolean;
+  animatedBackground: boolean;
+  cardStyle: "soft" | "sharp" | "glass";
+}
+
+export const DEFAULT_SITE_UI_CONFIG: SiteUiConfig = { glowIntensity: 55, scanlines: true, animatedBackground: true, cardStyle: "soft" };
+export function getSiteUiConfig(site: Pick<Site, "uiConfig"> | null | undefined): SiteUiConfig {
+  const raw = site?.uiConfig && typeof site.uiConfig === "object" && !Array.isArray(site.uiConfig) ? site.uiConfig as Record<string, unknown> : {};
+  return { glowIntensity: typeof raw.glowIntensity === "number" ? Math.max(0, Math.min(100, raw.glowIntensity)) : DEFAULT_SITE_UI_CONFIG.glowIntensity, scanlines: typeof raw.scanlines === "boolean" ? raw.scanlines : DEFAULT_SITE_UI_CONFIG.scanlines, animatedBackground: typeof raw.animatedBackground === "boolean" ? raw.animatedBackground : DEFAULT_SITE_UI_CONFIG.animatedBackground, cardStyle: raw.cardStyle === "sharp" || raw.cardStyle === "glass" ? raw.cardStyle : DEFAULT_SITE_UI_CONFIG.cardStyle };
+}
 
 export interface BotConfig {
   sessionPrefix: string;
@@ -191,6 +205,7 @@ export const siteConfigSchema = z.object({
   groupInviteCode: z.string().trim().max(200).nullable().optional(),
   channelJid: z.string().trim().max(200).nullable().optional(),
   botConfig: botConfigSchema,
+  uiConfig: z.object({ glowIntensity: z.number().min(0).max(100), scanlines: z.boolean(), animatedBackground: z.boolean(), cardStyle: z.enum(["soft", "sharp", "glass"]) }).optional(),
 });
 
 export const updateSiteSchema = z.object({

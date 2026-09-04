@@ -10,6 +10,7 @@ import {
   Globe2,
   BarChart3,
   CreditCard,
+  Palette,
   LogOut,
   Menu,
   X,
@@ -21,6 +22,7 @@ export type DashboardTab =
   | "sites"
   | "create"
   | "bot-config"
+  | "customize"
   | "domain"
   | "analytics"
   | "logs"
@@ -39,6 +41,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: "sites", label: "My sites", icon: Bot, available: true },
   { id: "create", label: "Create site", icon: Plus, available: true },
   { id: "bot-config", label: "Bot config", icon: Settings2, available: true },
+  { id: "customize", label: "Customize", icon: Palette, available: true },
   { id: "domain", label: "Custom domain", icon: Globe2, available: true },
   { id: "analytics", label: "Analytics", icon: BarChart3, available: true },
   { id: "billing", label: "Billing", icon: CreditCard, available: true },

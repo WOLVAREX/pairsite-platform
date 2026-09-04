@@ -7,6 +7,7 @@ import type { Request, Response, NextFunction } from "express";
 import { storage } from "./storage";
 import type { Account, AuthUser } from "@shared/schema";
 import { log } from "./index";
+import { sendWelcomeEmail } from "./email";
 
 declare global {
   namespace Express {
@@ -87,6 +88,7 @@ export function configurePassport() {
                   googleId: profile.id,
                   plan: "free",
                 });
+                sendWelcomeEmail(account.email).catch((err) => log(`Welcome email error: ${err.message}`, "email"));
               }
             }
             if (!account) return done(null, false);

@@ -231,6 +231,18 @@
     linear-gradient(180deg, #070908 0%, #050706 55%, #030504 100%);
 }
 
+.ui-scanlines::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: calc(0.08 * var(--pairsite-glow, 0.55));
+  background: repeating-linear-gradient(0deg, transparent 0, transparent 3px, rgba(255,255,255,.12) 4px);
+  z-index: 1;
+}
+.ui-static-background .neon-bg::after { animation: none; }
+.app-shell .neon-bg { opacity: var(--pairsite-glow, 0.55); }
+
 .app-topbar {
   background: rgba(5, 7, 6, 0.94);
   border: 1px solid rgba(255, 255, 255, 0.09);

@@ -92,3 +92,12 @@ export async function sendCloneAttemptEmails(params: {
     });
   }
 }
+
+export async function sendWelcomeEmail(email: string): Promise<void> {
+  await sendEmail({ to: email, subject: "Welcome to PairSite", htmlContent: `<h2>Welcome to PairSite</h2><p>Your account is ready. You have access to your free trial and can create your pair site from the dashboard.</p><p><a href="https://pairsite.space/dashboard">Open your dashboard</a></p>` });
+}
+
+export async function sendSiteCreatedEmail(email: string, site: { name: string; subdomain: string; expiresAt?: Date | null }): Promise<void> {
+  const url = `https://${site.subdomain}.pairsite.space`;
+  await sendEmail({ to: email, subject: `${site.name} pair site is ready`, htmlContent: `<h2>Your pair site is ready</h2><p><strong>${site.name}</strong> is available at <a href="${url}">${url}</a>.</p><p>Access expires on ${site.expiresAt ? site.expiresAt.toLocaleDateString() : "your current plan period"}.</p>` });
+}

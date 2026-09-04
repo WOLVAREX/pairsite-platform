@@ -2,8 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { apiRequest, getQueryFn } from "@/lib/queryClient";
-import type { AuthUser, Site, BotConfig } from "@shared/schema";
-import { DEFAULT_BOT_CONFIG } from "@shared/schema";
+import type { AuthUser, Site, BotConfig, SiteUiConfig } from "@shared/schema";
+import { DEFAULT_BOT_CONFIG, DEFAULT_SITE_UI_CONFIG } from "@shared/schema";
 import type { SiteTemplate } from "@shared/templates";
 import { DashboardLayout, type DashboardTab } from "@/components/dashboard-layout";
 import { getTemplateById } from "@shared/templates";
@@ -58,6 +58,7 @@ function SectionHeading({ title, subtitle }: { title: string; subtitle?: string 
 }
 
 function OverviewTab({ user, sites, onNavigate }: { user: AuthUser; sites: Site[]; onNavigate: (t: DashboardTab) => void }) {
+  const { data: billing } = useQuery<any>({ queryKey: ["/api/billing/status"] });
   const verified = sites.filter((s) => s.verificationStatus === "verified").length;
 
   const stats = [
@@ -81,6 +82,7 @@ function OverviewTab({ user, sites, onNavigate }: { user: AuthUser; sites: Site[
           </div>
         ))}
       </div>
+      {billing && <div className="mb-8 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-green-500/15 bg-green-500/[0.04] px-4 py-3 text-sm"><span className="text-gray-400">Pair-site access: <strong className="text-white">{billing.siteCount} / {billing.siteLimit}</strong> used · trial {billing.trialActive ? "ends" : "expired"} {billing.trialEndsAt ? new Date(billing.trialEndsAt).toLocaleDateString() : ""}</span><button onClick={() => onNavigate("billing")} className="text-green-400 hover:text-green-300">{billing.trialActive && billing.siteCount < billing.siteLimit ? "View billing" : "Pay now"}</button></div>}
 
       {!user.githubUsername && (
         <div className="mb-8 p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/20 flex items-start gap-3">
@@ -237,6 +239,7 @@ function CreateSiteTab({ user, onCreated }: { user: AuthUser; onCreated: () => v
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [createdSite, setCreatedSite] = useState<{ name: string; subdomain: string; publicUrl: string } | null>(null);
+  const [needsPayment, setNeedsPayment] = useState(false);
   const subdomainStatus = useSubdomainCheck(subdomain);
   const { data: templates = [] } = useQuery<SiteTemplate[]>({ queryKey: ["/api/templates"] });
 
@@ -274,8 +277,10 @@ function CreateSiteTab({ user, onCreated }: { user: AuthUser; onCreated: () => v
     },
     onError: (err: any) => {
       setError(err.message?.replace(/^\d+:\s*/, "") || "Failed to create site");
+      setNeedsPayment(err.message?.startsWith("402:") || false);
     },
   });
+  const payNow = useMutation({ mutationFn: async () => (await apiRequest("POST", "/api/billing/initialize")).json(), onSuccess: (result: any) => { window.location.href = result.authorizationUrl; } });
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -417,6 +422,7 @@ function CreateSiteTab({ user, onCreated }: { user: AuthUser; onCreated: () => v
                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" /> {error}
               </p>
             )}
+            {needsPayment && <button type="button" onClick={() => payNow.mutate()} disabled={payNow.isPending} className="flex w-full items-center justify-center gap-2 rounded-lg border border-yellow-500/30 bg-yellow-500/10 py-3 text-sm text-yellow-300">{payNow.isPending ? "Opening Paystack..." : "Pay now for another pair site"}</button>}
             {success && (
               <p className="text-green-400 font-mono text-xs flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4" /> Site created successfully.
@@ -457,6 +463,7 @@ interface SiteConfigResponse {
   groupInviteCode: string | null;
   channelJid: string | null;
   botConfig: BotConfig;
+  uiConfig: SiteUiConfig;
 }
 
 function BotConfigTab({ sites }: { sites: Site[] }) {
@@ -567,6 +574,15 @@ function BillingTab() {
   return <div><SectionHeading title="Billing" subtitle="One month free, then KSh 100 per additional pair site" /><div className="max-w-xl rounded-xl border border-gray-800/60 bg-black/20 p-6 space-y-4"><div className="flex items-center justify-between"><span className="text-gray-400">Trial</span><span className={data?.trialActive ? "text-green-400" : "text-red-400"}>{data?.trialActive ? "Active" : "Expired"}</span></div><div className="flex items-center justify-between"><span className="text-gray-400">Sites</span><span className="text-white">{data?.siteCount} / {data?.siteLimit}</span></div><div className="flex items-center justify-between"><span className="text-gray-400">Available site credits</span><span className="text-white">{data?.siteCredits || 0}</span></div><button onClick={() => pay.mutate()} disabled={pay.isPending} className="inline-flex items-center gap-2 rounded-lg bg-green-500/15 px-4 py-3 text-green-300 hover:bg-green-500/25 disabled:opacity-50"><CreditCard className="h-4 w-4" />{pay.isPending ? "Opening Paystack..." : `Pay ${data?.currency || "KES"} ${((data?.priceMinor || 10000) / 100).toFixed(2)} for another site`}</button>{pay.isError && <p className="text-xs text-red-400">Payment could not be started. Check Paystack configuration.</p>}</div></div>;
 }
 
+function CustomizeTab({ sites }: { sites: Site[] }) {
+  const [siteId, setSiteId] = useState<number | null>(sites[0]?.id ?? null); const [ui, setUi] = useState<SiteUiConfig>({ ...DEFAULT_SITE_UI_CONFIG }); const [bot, setBot] = useState<BotConfig>({ ...DEFAULT_BOT_CONFIG });
+  const { data } = useQuery<SiteConfigResponse>({ queryKey: ["/api/sites/" + siteId + "/config"], enabled: siteId !== null });
+  useEffect(() => { if (data) { setUi(data.uiConfig); setBot(data.botConfig); } }, [data]);
+  const save = useMutation({ mutationFn: () => apiRequest("PATCH", "/api/sites/" + siteId + "/config", { whatsappGroupLink: data?.whatsappGroupLink ?? null, channelLink: data?.channelLink ?? null, groupInviteCode: data?.groupInviteCode ?? null, channelJid: data?.channelJid ?? null, botConfig: bot, uiConfig: ui }), onSuccess: () => alert("Customization saved") });
+  if (!sites.length) return <SectionHeading title="Customize" subtitle="Create a pair site first" />;
+  return <div><SectionHeading title="Customize your pair site" subtitle="Tune the visual effects beyond the color theme" /><div className="max-w-2xl rounded-xl border border-gray-800/60 bg-black/20 p-6 space-y-6"><select value={siteId ?? ""} onChange={(e) => setSiteId(Number(e.target.value))} className="rounded-lg border border-gray-800 bg-black px-3 py-2 text-sm text-white">{sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select><label className="block text-sm text-gray-300">Glow intensity <input type="range" min="0" max="100" value={ui.glowIntensity} onChange={(e) => setUi({ ...ui, glowIntensity: Number(e.target.value) })} className="mt-3 w-full accent-green-500" /><span className="text-xs text-gray-500">{ui.glowIntensity}%</span></label><div className="grid grid-cols-1 gap-3 sm:grid-cols-2"><label className="flex gap-2 text-sm text-gray-300"><input type="checkbox" checked={ui.scanlines} onChange={(e) => setUi({ ...ui, scanlines: e.target.checked })} className="accent-green-500" /> Scanline overlay</label><label className="flex gap-2 text-sm text-gray-300"><input type="checkbox" checked={ui.animatedBackground} onChange={(e) => setUi({ ...ui, animatedBackground: e.target.checked })} className="accent-green-500" /> Animated background</label></div><label className="block text-sm text-gray-300">Card style<select value={ui.cardStyle} onChange={(e) => setUi({ ...ui, cardStyle: e.target.value as SiteUiConfig["cardStyle"] })} className="mt-2 block w-full rounded-lg border border-gray-800 bg-black px-3 py-2 text-white"><option value="soft">Soft rounded</option><option value="sharp">Sharp technical</option><option value="glass">Glass</option></select></label><button onClick={() => save.mutate()} disabled={save.isPending} className="rounded-lg bg-green-500/15 px-4 py-2.5 text-sm text-green-300">{save.isPending ? "Saving..." : "Save customization"}</button></div></div>;
+}
+
 function DomainTab({ sites }: { sites: Site[] }) {
   const [hostname, setHostname] = useState(""); const [siteId, setSiteId] = useState(sites[0]?.id || 0); const [result, setResult] = useState<any>(null); const [error, setError] = useState("");
   const { data = [], refetch } = useQuery<any[]>({ queryKey: ["/api/domains"] });
@@ -601,6 +617,7 @@ export default function Dashboard() {
       {tab === "sites" && <MySitesTab sites={sites} isLoading={sitesLoading} onNavigate={setTab} />}
       {tab === "create" && <CreateSiteTab user={user} onCreated={() => setTab("sites")} />}
       {tab === "bot-config" && <BotConfigTab sites={sites} />}
+      {tab === "customize" && <CustomizeTab sites={sites} />}
       {tab === "billing" && <BillingTab />}
       {tab === "domain" && <DomainTab sites={sites} />}
       {tab === "analytics" && <div><SectionHeading title="Analytics" subtitle="Live platform session activity" /><a href="/analytics" className="text-green-400 underline">Open analytics dashboard</a></div>}

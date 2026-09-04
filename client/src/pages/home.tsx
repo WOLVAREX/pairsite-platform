@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { getBotConfig, type SessionResponse, type SessionStatus, type Site } from "@shared/schema";
+import { getBotConfig, getSiteUiConfig, type SessionResponse, type SessionStatus, type Site } from "@shared/schema";
 import {
   ArrowUpRight,
   Copy,
@@ -297,6 +297,7 @@ export default function Home({ site }: { site: Site }) {
   };
 
   const sessionPrefix = getBotConfig(site).sessionPrefix;
+  const uiConfig = getSiteUiConfig(site);
 
   const template = getTemplateById(site.templateId);
 
@@ -313,8 +314,8 @@ export default function Home({ site }: { site: Site }) {
 
   return (
     <div
-      className="min-h-screen app-shell text-white relative overflow-hidden"
-      style={template.hueRotate !== 0 ? { filter: `hue-rotate(${template.hueRotate}deg)` } : undefined}
+      className={`min-h-screen app-shell text-white relative overflow-hidden ${uiConfig.scanlines ? "ui-scanlines" : ""} ${uiConfig.animatedBackground ? "" : "ui-static-background"}`}
+      style={{ ...(template.hueRotate !== 0 ? { filter: `hue-rotate(${template.hueRotate}deg)` } : {}), "--pairsite-glow": `${uiConfig.glowIntensity / 100}` } as React.CSSProperties}
     >
       <div className="neon-bg" />
 
