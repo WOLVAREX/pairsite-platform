@@ -1,329 +1,129 @@
-import { useState, useEffect } from "react";
+import { useMemo, useState } from "react";
+import type { FormEvent, ReactNode } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { QuickLink } from "@shared/schema";
 import {
-  Shield,
-  Link2,
-  Eye,
-  EyeOff,
-  Edit2,
-  Check,
-  X,
-  LogOut,
-  BarChart3,
-  Rocket,
-  Bot,
-  Send,
+  Bot, Check, ChevronDown,
+  Clock3, CreditCard, ExternalLink, Eye, EyeOff, LayoutDashboard, Link2,
+  LogOut, Menu, Search, Send, Settings2, Shield, Sparkles, Users, Wallet, X,
 } from "lucide-react";
-import { SiGithub } from "react-icons/si";
 import { Link } from "wouter";
 
-function QuickLinkIcon({ icon }: { icon: string }) {
-  if (icon === "Github") return <SiGithub className="w-4 h-4 text-green-400" />;
-  if (icon === "Rocket") return <Rocket className="w-4 h-4 text-green-400" />;
-  return <BarChart3 className="w-4 h-4 text-green-400" />;
-}
+type Site = { id: number; name: string; subdomain: string; status: string; expiresAt: string | null; createdAt: string; verificationStatus: string };
+type Account = { id: number; email: string; githubUsername: string | null; plan: string; createdAt: string; trialEndsAt: string | null; paidUntil: string | null; siteCredits: number; sites: Site[] };
+type Payment = { id: number; accountId: number; email: string; reference: string; amountMinor: number; currency: string; status: string; purpose: string; paidAt: string | null; createdAt: string };
+type Settings = { id: number; trialDays: number; freeSiteLimit: number; priceMinor: number; currency: string; defaultGroupInviteCode: string | null; defaultChannelJid: string | null; showcaseEnabled: boolean };
+type Section = "overview" | "users" | "sites" | "transactions" | "settings";
+const adminHeader = (password: string) => ({ "x-admin-password": password });
+const fetchAdmin = async <T,>(url: string, password: string): Promise<T> => {
+  const response = await fetch(url, { headers: adminHeader(password) });
+  if (!response.ok) throw new Error(response.status === 401 ? "Admin session expired. Sign in again." : "Could not load admin data.");
+  return response.json();
+};
+const dateLabel = (value?: string | null) => value ? new Date(value).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : "—";
+const moneyLabel = (minor: number, currency: string) => `${currency} ${(minor / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 function LoginScreen({ onLogin }: { onLogin: (password: string) => void }) {
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
-    try {
-      await apiRequest("POST", "/api/admin/verify", { password });
-      onLogin(password);
-    } catch {
-      setError("Invalid password");
-    } finally {
-      setLoading(false);
-    }
+  const [password, setPassword] = useState(""); const [error, setError] = useState(""); const [loading, setLoading] = useState(false);
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault(); setLoading(true); setError("");
+    try { await apiRequest("POST", "/api/admin/verify", { password }); onLogin(password); }
+    catch { setError("That password was not accepted."); }
+    finally { setLoading(false); }
   }
-
-  return (
-    <div className="min-h-screen bg-black flex items-center justify-center p-4 relative overflow-hidden">
-      <div className="neon-bg" />
-      <div className="w-full max-w-sm relative z-10">
-        <div className="flex items-center gap-3 justify-center mb-8">
-          <div className="p-2 rounded-lg bg-green-500/10 border border-green-500/20 animate-glow-pulse">
-            <Shield className="w-6 h-6 text-green-400" />
-          </div>
-          <div>
-            <h1 className="text-white font-display font-bold text-lg">Admin Panel</h1>
-            <p className="text-gray-500 font-mono text-xs">WolfBot Management</p>
-          </div>
-        </div>
-        <div className="backdrop-blur-sm bg-black/30 border border-green-500/20 rounded-xl p-6">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="text-gray-400 font-mono text-xs uppercase tracking-wider mb-2 block">
-                Admin Password
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter password"
-                data-testid="input-admin-password"
-                className="w-full bg-black/50 border border-gray-800/50 rounded-lg px-4 py-3 text-white font-mono text-sm placeholder-gray-700 focus:outline-none focus:border-green-500/50 transition-colors"
-              />
-            </div>
-            {error && (
-              <p className="text-red-400 font-mono text-xs" data-testid="text-login-error">{error}</p>
-            )}
-            <button
-              type="submit"
-              disabled={loading || !password}
-              data-testid="button-admin-login"
-              className="w-full bg-green-500/10 hover:bg-green-500/20 border border-green-500/30 hover:border-green-500/50 text-green-400 font-mono text-sm py-3 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? "Verifying..." : "Access Dashboard"}
-            </button>
-          </form>
-        </div>
-      </div>
-    </div>
-  );
+  return <div className="min-h-screen bg-[#080b09] text-white flex items-center justify-center p-5"><div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#101512] p-8 shadow-2xl"><div className="mb-8 flex items-center gap-3"><div className="rounded-xl bg-emerald-400/10 p-3 text-emerald-300"><Shield /></div><div><h1 className="text-xl font-semibold">PairSite Admin</h1><p className="text-sm text-gray-500">Sign in to manage your platform</p></div></div><form onSubmit={handleSubmit} className="space-y-4"><label className="block text-sm text-gray-400">Admin password<input autoFocus type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Enter password" className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none focus:border-emerald-400/60" /></label>{error && <p className="text-sm text-red-400">{error}</p>}<button disabled={loading || !password} className="w-full rounded-xl bg-emerald-400 px-4 py-3 font-semibold text-[#08100b] disabled:opacity-50">{loading ? "Checking…" : "Open dashboard"}</button></form></div></div>;
 }
 
-function EditLinkRow({ link, adminPassword, onSaved }: { link: QuickLink; adminPassword: string; onSaved: () => void }) {
-  const { toast } = useToast();
-  const [editing, setEditing] = useState(false);
-  const [label, setLabel] = useState(link.label);
-  const [subtitle, setSubtitle] = useState(link.subtitle);
-  const [url, setUrl] = useState(link.url);
-
-  const updateMutation = useMutation({
-    mutationFn: (data: Partial<QuickLink>) =>
-      apiRequest("PATCH", `/api/admin/quick-links/${link.key}`, data, {
-        "x-admin-password": adminPassword,
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/quick-links"] });
-      onSaved();
-      setEditing(false);
-    },
-    onError: () => toast({ title: "Error", description: "Failed to update link", variant: "destructive" }),
-  });
-
-  const toggleVisible = () => updateMutation.mutate({ visible: !link.visible });
-  const saveEdit = () => updateMutation.mutate({ label, subtitle, url });
-  const cancelEdit = () => { setLabel(link.label); setSubtitle(link.subtitle); setUrl(link.url); setEditing(false); };
-
-  return (
-    <div
-      className={`border rounded-xl p-4 transition-all duration-200 ${link.visible ? "border-green-500/20 bg-black/20" : "border-gray-800/30 bg-black/10 opacity-60"}`}
-      data-testid={`row-link-${link.key}`}
-    >
-      <div className="flex items-start gap-3">
-        <div className="w-9 h-9 rounded-full bg-green-500/10 flex items-center justify-center shrink-0 mt-0.5">
-          <QuickLinkIcon icon={link.icon} />
-        </div>
-        <div className="flex-1 min-w-0">
-          {editing ? (
-            <div className="space-y-2">
-              <input
-                value={label}
-                onChange={(e) => setLabel(e.target.value)}
-                placeholder="Label"
-                data-testid={`input-label-${link.key}`}
-                className="w-full bg-black/50 border border-gray-700/50 rounded-lg px-3 py-1.5 text-white font-mono text-sm focus:outline-none focus:border-green-500/50 transition-colors"
-              />
-              <input
-                value={subtitle}
-                onChange={(e) => setSubtitle(e.target.value)}
-                placeholder="Subtitle"
-                data-testid={`input-subtitle-${link.key}`}
-                className="w-full bg-black/50 border border-gray-700/50 rounded-lg px-3 py-1.5 text-gray-400 font-mono text-xs focus:outline-none focus:border-green-500/50 transition-colors"
-              />
-              <input
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                placeholder="URL"
-                data-testid={`input-url-${link.key}`}
-                className="w-full bg-black/50 border border-gray-700/50 rounded-lg px-3 py-1.5 text-gray-400 font-mono text-xs focus:outline-none focus:border-green-500/50 transition-colors"
-              />
-            </div>
-          ) : (
-            <div>
-              <p className="text-white font-mono text-sm font-medium truncate">{link.label}</p>
-              <p className="text-gray-500 font-mono text-[10px] truncate">{link.subtitle}</p>
-              <p className="text-gray-700 font-mono text-[10px] truncate mt-0.5">{link.url}</p>
-            </div>
-          )}
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          {editing ? (
-            <>
-              <button
-                onClick={saveEdit}
-                disabled={updateMutation.isPending}
-                data-testid={`button-save-${link.key}`}
-                className="p-1.5 rounded-lg bg-green-500/10 hover:bg-green-500/20 text-green-400 transition-colors"
-              >
-                <Check className="w-4 h-4" />
-              </button>
-              <button
-                onClick={cancelEdit}
-                data-testid={`button-cancel-${link.key}`}
-                className="p-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                onClick={() => setEditing(true)}
-                data-testid={`button-edit-${link.key}`}
-                className="p-1.5 rounded-lg bg-gray-800/50 hover:bg-gray-700/50 text-gray-400 hover:text-white transition-colors"
-              >
-                <Edit2 className="w-4 h-4" />
-              </button>
-              <button
-                onClick={toggleVisible}
-                disabled={updateMutation.isPending}
-                data-testid={`button-toggle-${link.key}`}
-                className={`p-1.5 rounded-lg transition-colors ${link.visible ? "bg-green-500/10 hover:bg-green-500/20 text-green-400" : "bg-gray-800/50 hover:bg-gray-700/50 text-gray-600"}`}
-              >
-                {link.visible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
-  );
+function QuickLinkRow({ link, password, onSaved }: { link: QuickLink; password: string; onSaved: () => void }) {
+  const [editing, setEditing] = useState(false); const [label, setLabel] = useState(link.label); const [subtitle, setSubtitle] = useState(link.subtitle); const [url, setUrl] = useState(link.url);
+  const mutation = useMutation({ mutationFn: (body: Partial<QuickLink>) => apiRequest("PATCH", `/api/admin/quick-links/${link.key}`, body, adminHeader(password)), onSuccess: () => { onSaved(); setEditing(false); } });
+  return <div className="flex flex-wrap items-center gap-3 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3"><div className="min-w-0 flex-1">{editing ? <div className="grid gap-2 sm:grid-cols-3"><input value={label} onChange={(e) => setLabel(e.target.value)} className="rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white" placeholder="Label" /><input value={subtitle} onChange={(e) => setSubtitle(e.target.value)} className="rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white" placeholder="Subtitle" /><input value={url} onChange={(e) => setUrl(e.target.value)} className="rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white" placeholder="URL" /></div> : <><p className="truncate text-sm font-medium text-white">{link.label}</p><p className="truncate text-xs text-gray-500">{link.subtitle} · {link.url}</p></>}</div>{editing ? <><button onClick={() => mutation.mutate({ label, subtitle, url })} className="rounded-lg p-2 text-emerald-300 hover:bg-emerald-400/10"><Check size={16} /></button><button onClick={() => setEditing(false)} className="rounded-lg p-2 text-gray-400 hover:bg-white/5"><X size={16} /></button></> : <><button onClick={() => setEditing(true)} className="rounded-lg border border-white/10 px-3 py-2 text-xs text-gray-300 hover:bg-white/5">Edit</button><button onClick={() => mutation.mutate({ visible: !link.visible })} className="rounded-lg border border-white/10 p-2 text-gray-400 hover:bg-white/5">{link.visible ? <Eye size={16} /> : <EyeOff size={16} />}</button></>}</div>;
 }
 
-function AdminControls({ password }: { password: string }) {
-  const { toast } = useToast();
-  const { data: settings, refetch } = useQuery<any>({ queryKey: ["/api/admin/settings"], queryFn: async () => (await fetch("/api/admin/settings", { headers: { "x-admin-password": password } })).json() });
-  const { data: accounts = [] } = useQuery<any[]>({ queryKey: ["/api/admin/accounts"], queryFn: async () => (await fetch("/api/admin/accounts", { headers: { "x-admin-password": password } })).json() });
-  const { data: payments = [] } = useQuery<any[]>({ queryKey: ["/api/admin/payments"], queryFn: async () => (await fetch("/api/admin/payments", { headers: { "x-admin-password": password } })).json() });
-  const [form, setForm] = useState<any>(null);
-  const [broadcast, setBroadcast] = useState({ subject: "", message: "" });
-  const broadcastMutation = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/admin/broadcast", broadcast, { "x-admin-password": password }),
-    onSuccess: async (response) => {
-      const result = await response.json();
-      toast({ title: "Broadcast sent", description: `${result.sent} of ${result.total} emails accepted by Brevo.` });
-      setBroadcast({ subject: "", message: "" });
-    },
-    onError: (error: any) => toast({ title: "Broadcast failed", description: error.message, variant: "destructive" }),
-  });
-  useEffect(() => { if (settings) setForm(settings); }, [settings]);
-  const save = useMutation({ mutationFn: () => apiRequest("PATCH", "/api/admin/settings", form, { "x-admin-password": password }), onSuccess: () => refetch() });
-  if (!form) return null;
-  return <div className="mt-4 space-y-4"><div className="backdrop-blur-sm bg-black/30 border border-green-500/20 rounded-xl p-5 sm:p-6"><h2 className="text-sm font-bold text-white font-mono mb-4">Platform controls</h2><div className="grid grid-cols-2 gap-3"><label className="text-xs text-gray-400">Trial days<input value={form.trialDays} onChange={(e) => setForm({ ...form, trialDays: Number(e.target.value) })} className="mt-1 w-full rounded-lg border border-gray-800 bg-black/50 px-3 py-2 text-white" /></label><label className="text-xs text-gray-400">Free site limit<input value={form.freeSiteLimit} onChange={(e) => setForm({ ...form, freeSiteLimit: Number(e.target.value) })} className="mt-1 w-full rounded-lg border border-gray-800 bg-black/50 px-3 py-2 text-white" /></label><label className="text-xs text-gray-400">Price in minor units<input value={form.priceMinor} onChange={(e) => setForm({ ...form, priceMinor: Number(e.target.value) })} className="mt-1 w-full rounded-lg border border-gray-800 bg-black/50 px-3 py-2 text-white" /></label><label className="text-xs text-gray-400">Currency<input value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })} className="mt-1 w-full rounded-lg border border-gray-800 bg-black/50 px-3 py-2 text-white" /></label><label className="col-span-2 text-xs text-gray-400">Default group invite code<input value={form.defaultGroupInviteCode || ""} onChange={(e) => setForm({ ...form, defaultGroupInviteCode: e.target.value })} className="mt-1 w-full rounded-lg border border-gray-800 bg-black/50 px-3 py-2 text-white" /></label><label className="col-span-2 text-xs text-gray-400">Default channel JID<input value={form.defaultChannelJid || ""} onChange={(e) => setForm({ ...form, defaultChannelJid: e.target.value })} className="mt-1 w-full rounded-lg border border-gray-800 bg-black/50 px-3 py-2 text-white" /></label></div><button onClick={() => save.mutate()} disabled={save.isPending} className="mt-4 rounded-lg bg-green-500/15 px-4 py-2 text-sm text-green-300">{save.isPending ? "Saving..." : "Save controls"}</button></div><div className="backdrop-blur-sm bg-black/30 border border-green-500/20 rounded-xl p-5"><div className="mb-3 flex items-center gap-2"><Send className="h-4 w-4 text-green-400" /><h2 className="text-sm font-bold text-white font-mono">Broadcast to all accounts</h2></div><p className="mb-3 text-xs text-gray-500">Brevo will receive one message per account email.</p><input value={broadcast.subject} onChange={(e) => setBroadcast({ ...broadcast, subject: e.target.value })} placeholder="Subject" className="mb-2 w-full rounded-lg border border-gray-800 bg-black/50 px-3 py-2 text-sm text-white" /><textarea value={broadcast.message} onChange={(e) => setBroadcast({ ...broadcast, message: e.target.value })} placeholder="Write your announcement..." rows={5} className="w-full rounded-lg border border-gray-800 bg-black/50 px-3 py-2 text-sm text-white" /><button onClick={() => broadcastMutation.mutate()} disabled={broadcastMutation.isPending || !broadcast.subject.trim() || !broadcast.message.trim()} className="mt-3 rounded-lg bg-green-500/15 px-4 py-2 text-sm text-green-300 disabled:opacity-40">{broadcastMutation.isPending ? "Sending..." : "Send broadcast"}</button></div><div className="backdrop-blur-sm bg-black/30 border border-green-500/20 rounded-xl p-5"><h2 className="text-sm font-bold text-white font-mono mb-3">Accounts & payments</h2><div className="grid grid-cols-2 gap-3 mb-4"><div className="rounded-lg bg-white/[0.03] p-3"><p className="text-2xl text-green-400">{accounts.length}</p><p className="text-xs text-gray-500">Accounts</p></div><div className="rounded-lg bg-white/[0.03] p-3"><p className="text-2xl text-green-400">{payments.filter((p) => p.status === "success").length}</p><p className="text-xs text-gray-500">Successful payments</p></div></div><div className="max-h-48 overflow-auto space-y-2">{payments.slice(0, 10).map((p) => <div key={p.id} className="flex justify-between text-xs text-gray-400"><span>{p.reference}</span><span className={p.status === "success" ? "text-green-400" : "text-yellow-400"}>{p.status}</span></div>)}</div></div></div>;
-}
-
-function ShowcaseControl({ password }: { password: string }) {
-  const { data: settings, refetch } = useQuery<any>({ queryKey: ["/api/admin/settings", "showcase"], queryFn: async () => (await fetch("/api/admin/settings", { headers: { "x-admin-password": password } })).json() });
-  const { toast } = useToast();
-  const update = useMutation({
-    mutationFn: (showcaseEnabled: boolean) => apiRequest("PATCH", "/api/admin/settings", { id: settings?.id || 1, trialDays: settings?.trialDays, freeSiteLimit: settings?.freeSiteLimit, priceMinor: settings?.priceMinor, currency: settings?.currency, defaultGroupInviteCode: settings?.defaultGroupInviteCode, defaultChannelJid: settings?.defaultChannelJid, showcaseEnabled }, { "x-admin-password": password }),
-    onSuccess: () => { refetch(); toast({ title: "Showcase updated" }); },
-  });
-  if (!settings) return null;
-  return <div className="mt-4 rounded-xl border border-green-500/20 bg-black/30 p-5"><label className="flex items-center justify-between gap-4 text-sm text-gray-200"><span><span className="block font-mono font-medium">Public developer showcase</span><span className="mt-1 block text-xs text-gray-500">Show active developers and their PairSites on the landing page.</span></span><input type="checkbox" checked={settings.showcaseEnabled !== false} onChange={(e) => update.mutate(e.target.checked)} disabled={update.isPending} className="h-5 w-5 accent-green-500" /></label></div>;
+function StatCard({ label, value, note, icon: Icon, tone = "emerald" }: { label: string; value: string | number; note: string; icon: any; tone?: "emerald" | "blue" | "amber" | "violet" }) {
+  const colors = { emerald: "text-emerald-300 bg-emerald-300/10", blue: "text-sky-300 bg-sky-300/10", amber: "text-amber-300 bg-amber-300/10", violet: "text-violet-300 bg-violet-300/10" };
+  return <div className="rounded-2xl border border-white/[0.08] bg-[#111713] p-5"><div className="flex items-start justify-between"><div><p className="text-sm text-gray-500">{label}</p><p className="mt-3 text-3xl font-semibold tracking-tight text-white">{value}</p></div><div className={`rounded-xl p-2.5 ${colors[tone]}`}><Icon size={19} /></div></div><p className="mt-3 text-xs text-gray-500">{note}</p></div>;
 }
 
 export default function Admin() {
   const [adminPassword, setAdminPassword] = useState<string | null>(() => sessionStorage.getItem("wolf_admin_pw"));
+  const [section, setSection] = useState<Section>("overview"); const [mobileNav, setMobileNav] = useState(false);
+  const [search, setSearch] = useState(""); const [days, setDays] = useState<Record<number, number>>({});
   const { toast } = useToast();
-
-  const { data: links = [], refetch } = useQuery<QuickLink[]>({
-    queryKey: ["/api/quick-links"],
-    enabled: !!adminPassword,
+  const accountsQuery = useQuery<Account[]>({ queryKey: ["/api/admin/accounts"], queryFn: () => fetchAdmin("/api/admin/accounts", adminPassword!), enabled: !!adminPassword });
+  const paymentsQuery = useQuery<Payment[]>({ queryKey: ["/api/admin/payments"], queryFn: () => fetchAdmin("/api/admin/payments", adminPassword!), enabled: !!adminPassword });
+  const settingsQuery = useQuery<Settings>({ queryKey: ["/api/admin/settings"], queryFn: () => fetchAdmin("/api/admin/settings", adminPassword!), enabled: !!adminPassword });
+  const linksQuery = useQuery<QuickLink[]>({ queryKey: ["/api/quick-links"], enabled: !!adminPassword });
+  const accounts = accountsQuery.data || []; const payments = paymentsQuery.data || []; const settings = settingsQuery.data;
+  const allSites = useMemo(() => accounts.flatMap((account) => account.sites.map((site) => ({ ...site, ownerEmail: account.email, accountId: account.id }))), [accounts]);
+  const paid = payments.filter((payment) => payment.status === "success");
+  const revenue = paid.reduce((sum, payment) => sum + payment.amountMinor, 0);
+  const recentActivity = payments.slice(0, 6);
+  const filteredAccounts = accounts.filter((account) => `${account.email} ${account.githubUsername || ""} ${account.sites.map((site) => site.name).join(" ")}`.toLowerCase().includes(search.toLowerCase()));
+  const filteredPayments = payments.filter((payment) => `${payment.email} ${payment.reference} ${payment.status}`.toLowerCase().includes(search.toLowerCase()));
+  const filteredSites = allSites.filter((site) => `${site.name} ${site.subdomain} ${site.ownerEmail}`.toLowerCase().includes(search.toLowerCase()));
+  const navItems: { id: Section; label: string; icon: any }[] = [
+    { id: "overview", label: "Overview", icon: LayoutDashboard }, { id: "users", label: "Users", icon: Users },
+    { id: "sites", label: "Pair sites", icon: Link2 }, { id: "transactions", label: "Transactions", icon: CreditCard },
+    { id: "settings", label: "Settings", icon: Settings2 },
+  ];
+  const extend = useMutation({
+    mutationFn: async ({ id, days: addDays }: { id: number; days: number }) => {
+      const response = await apiRequest("POST", `/api/admin/accounts/${id}/access`, { days: addDays }, adminHeader(adminPassword!));
+      return response.json();
+    },
+    onSuccess: (result, variables) => { toast({ title: "Access extended", description: `Added ${variables.days} days, through ${dateLabel(result.paidUntil)}.` }); queryClient.invalidateQueries({ queryKey: ["/api/admin/accounts"] }); },
+    onError: (error: Error) => toast({ title: "Could not extend access", description: error.message, variant: "destructive" }),
   });
+  const saveSettings = useMutation({ mutationFn: (value: Settings) => apiRequest("PATCH", "/api/admin/settings", value, adminHeader(adminPassword!)), onSuccess: () => { settingsQuery.refetch(); toast({ title: "Settings saved" }); } });
+  const broadcast = useMutation({ mutationFn: (body: { subject: string; message: string }) => apiRequest("POST", "/api/admin/broadcast", body, adminHeader(adminPassword!)), onSuccess: async (response) => { const result = await response.json(); toast({ title: "Announcement sent", description: `${result.sent} of ${result.total} emails accepted.` }); }, onError: (error: Error) => toast({ title: "Announcement failed", description: error.message, variant: "destructive" }) });
 
-  function handleLogin(password: string) {
-    sessionStorage.setItem("wolf_admin_pw", password);
-    setAdminPassword(password);
-    toast({ title: "Access granted", description: "Welcome to the admin dashboard" });
-  }
-
-  function handleLogout() {
-    sessionStorage.removeItem("wolf_admin_pw");
-    setAdminPassword(null);
-  }
-
+  function handleLogin(password: string) { sessionStorage.setItem("wolf_admin_pw", password); setAdminPassword(password); toast({ title: "Welcome back", description: "Admin access confirmed." }); }
+  function handleLogout() { sessionStorage.removeItem("wolf_admin_pw"); setAdminPassword(null); }
   if (!adminPassword) return <LoginScreen onLogin={handleLogin} />;
+  const titles: Record<Section, [string, string]> = { overview: ["Overview", "Your platform at a glance."], users: ["Users", "Manage accounts, sites, and access periods."], sites: ["Pair sites", "Every developer site across PairSite."], transactions: ["Transactions", "Payment history and transaction status."], settings: ["Settings", "Platform defaults and operator tools."] };
+  const sectionContent = () => {
+    if (section === "overview") return <>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><StatCard label="Total users" value={accounts.length} note="Registered PairSite accounts" icon={Users} /><StatCard label="Pair sites" value={allSites.length} note={`${allSites.filter((site) => site.status === "active").length} currently active`} icon={Link2} tone="blue" /><StatCard label="Successful payments" value={paid.length} note={`${payments.length} total transactions`} icon={CreditCard} tone="violet" /><StatCard label="Collected revenue" value={moneyLabel(revenue, paid[0]?.currency || settings?.currency || "KES")} note="From successful transactions" icon={Wallet} tone="amber" /></div>
+      <div className="mt-6 grid gap-5 xl:grid-cols-[1.5fr_1fr]"><Panel title="Recent transactions" subtitle="Latest payment activity" action={<button onClick={() => setSection("transactions")} className="text-xs text-emerald-300 hover:text-emerald-200">View all</button>}><TransactionTable payments={recentActivity} /></Panel><Panel title="Platform snapshot" subtitle="Current account and site health"><div className="space-y-4"><Snapshot label="Users with pair sites" value={accounts.filter((account) => account.sites.length > 0).length} /><Snapshot label="Users without sites" value={accounts.filter((account) => account.sites.length === 0).length} /><Snapshot label="Expired sites" value={allSites.filter((site) => site.expiresAt && new Date(site.expiresAt) < new Date()).length} /><Snapshot label="Pending payments" value={payments.filter((payment) => payment.status !== "success").length} /></div></Panel></div>
+      <div className="mt-5"><Panel title="Recently joined" subtitle="Latest PairSite accounts" action={<button onClick={() => setSection("users")} className="text-xs text-emerald-300">All users</button>}><AccountTable accounts={accounts.slice(0, 6)} onManage={() => setSection("users")} /></Panel></div>
+    </>;
+    if (section === "users") return <Panel title="All users" subtitle={`${accounts.length} registered accounts`}><div className="mb-4 relative"><Search className="absolute left-3 top-3 h-4 w-4 text-gray-500" /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by email, GitHub name, or site" className="w-full rounded-xl border border-white/10 bg-black/20 py-2.5 pl-10 pr-4 text-sm text-white outline-none focus:border-emerald-300/40" /></div><div className="space-y-3">{filteredAccounts.map((account) => <UserCard key={account.id} account={account} days={days[account.id] ?? 30} setDays={(value) => setDays({ ...days, [account.id]: value })} onExtend={() => extend.mutate({ id: account.id, days: days[account.id] ?? 30 })} pending={extend.isPending} />)}{filteredAccounts.length === 0 && <EmptyState text="No accounts match your search." />}</div></Panel>;
+    if (section === "sites") return <Panel title="All pair sites" subtitle={`${allSites.length} sites registered`}><div className="mb-4 relative"><Search className="absolute left-3 top-3 h-4 w-4 text-gray-500" /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search sites or owners" className="w-full rounded-xl border border-white/10 bg-black/20 py-2.5 pl-10 pr-4 text-sm text-white outline-none focus:border-emerald-300/40" /></div><div className="overflow-x-auto"><table className="w-full min-w-[680px] text-left text-sm"><thead className="text-xs uppercase tracking-wide text-gray-500"><tr><th className="pb-3 font-medium">Site</th><th className="pb-3 font-medium">Owner</th><th className="pb-3 font-medium">Status</th><th className="pb-3 font-medium">Access until</th><th className="pb-3 font-medium">Created</th></tr></thead><tbody className="divide-y divide-white/[0.06]">{filteredSites.map((site) => <tr key={site.id}><td className="py-3"><p className="font-medium text-white">{site.name}</p><a className="inline-flex items-center gap-1 text-xs text-emerald-300 hover:text-emerald-200" href={`https://${site.subdomain}.${window.location.hostname}`} target="_blank" rel="noreferrer">{site.subdomain}<ExternalLink size={11} /></a></td><td className="py-3 text-gray-400">{site.ownerEmail}</td><td className="py-3"><StatusPill value={site.status} /></td><td className="py-3 text-gray-400">{dateLabel(site.expiresAt)}</td><td className="py-3 text-gray-500">{dateLabel(site.createdAt)}</td></tr>)}</tbody></table>{filteredSites.length === 0 && <EmptyState text="No pair sites found." />}</div></Panel>;
+    if (section === "transactions") return <Panel title="Transactions" subtitle={`${payments.length} payment records`}><div className="mb-4 relative"><Search className="absolute left-3 top-3 h-4 w-4 text-gray-500" /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search customer, reference, or status" className="w-full rounded-xl border border-white/10 bg-black/20 py-2.5 pl-10 pr-4 text-sm text-white outline-none focus:border-emerald-300/40" /></div><TransactionTable payments={filteredPayments} /></Panel>;
+    return <SettingsPanel password={adminPassword} settings={settings} onSave={(value) => saveSettings.mutate(value)} saving={saveSettings.isPending} links={linksQuery.data || []} onLinksSaved={() => linksQuery.refetch()} onBroadcast={(value) => broadcast.mutate(value)} broadcasting={broadcast.isPending} />;
+  };
 
-  const sorted = [...links].sort((a, b) => a.order - b.order);
-
-  return (
-    <div className="min-h-screen bg-black p-4 sm:p-8 relative overflow-hidden">
-      <div className="neon-bg" />
-      <div className="max-w-2xl mx-auto relative z-10">
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-green-500/10 border border-green-500/20 animate-glow-pulse">
-              <Shield className="w-5 h-5 text-green-400" />
-            </div>
-            <div>
-              <h1 className="text-white font-display font-bold">Admin Dashboard</h1>
-              <p className="text-gray-500 font-mono text-xs">WolfBot Management</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Link href="/">
-              <button
-                data-testid="button-goto-home"
-                className="px-3 py-2 rounded-lg bg-black/30 border border-gray-800/30 hover:border-green-500/30 text-gray-400 hover:text-white font-mono text-xs transition-all"
-              >
-                Home
-              </button>
-            </Link>
-            <button
-              onClick={handleLogout}
-              data-testid="button-logout"
-              className="p-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 transition-all"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-
-        <div className="backdrop-blur-sm bg-black/30 border border-green-500/20 rounded-xl p-5 sm:p-6">
-          <div className="flex items-center gap-3 mb-5">
-            <div className="p-2 rounded-lg bg-green-500/10 border border-green-500/20">
-              <Link2 className="w-4 h-4 text-green-400" />
-            </div>
-            <div>
-              <h2 className="text-sm font-bold text-white font-mono">Quick Links</h2>
-              <p className="text-xs text-gray-500 font-mono">Toggle visibility or edit any link</p>
-            </div>
-          </div>
-          <div className="space-y-3">
-            {sorted.map((link) => (
-              <EditLinkRow
-                key={link.key}
-                link={link}
-                adminPassword={adminPassword}
-                onSaved={() => refetch()}
-              />
-            ))}
-            {sorted.length === 0 && (
-              <p className="text-gray-600 font-mono text-sm text-center py-6">No links found</p>
-            )}
-          </div>
-        </div>
-
-        <AdminControls password={adminPassword} />
-        <ShowcaseControl password={adminPassword} />
-
-        <div className="mt-4 flex items-center justify-center gap-2">
-          <Bot className="w-3 h-3 text-gray-700" />
-          <span className="text-gray-700 font-mono text-[10px]">WOLFBOT Admin v2.0.0</span>
-        </div>
-      </div>
-    </div>
-  );
+  return <div className="min-h-screen bg-[#080b09] text-gray-100"><div className="flex min-h-screen"><aside className={`${mobileNav ? "fixed inset-y-0 left-0 z-40 flex" : "hidden"} w-[260px] shrink-0 flex-col border-r border-white/[0.07] bg-[#0d120f] p-5 lg:sticky lg:top-0 lg:flex lg:h-screen`}><div className="flex items-center gap-3 px-2 py-3"><div className="rounded-xl bg-emerald-400/10 p-2.5 text-emerald-300"><Bot size={20} /></div><div><p className="font-semibold tracking-tight text-white">PairSite</p><p className="text-[11px] text-gray-500">ADMIN CONSOLE</p></div><button onClick={() => setMobileNav(false)} className="ml-auto rounded-lg p-2 text-gray-500 lg:hidden"><X size={18} /></button></div><div className="mt-9 px-3 text-[10px] font-semibold uppercase tracking-[.18em] text-gray-600">Workspace</div><nav className="mt-3 space-y-1">{navItems.map(({ id, label, icon: Icon }) => <button key={id} onClick={() => { setSection(id); setMobileNav(false); setSearch(""); }} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition ${section === id ? "bg-emerald-300/10 font-medium text-emerald-200" : "text-gray-400 hover:bg-white/[0.04] hover:text-white"}`}><Icon size={17} />{label}{id === "users" && <span className="ml-auto rounded-md bg-white/[0.06] px-2 py-0.5 text-[10px] text-gray-400">{accounts.length}</span>}</button>)}</nav><div className="mt-auto rounded-xl border border-emerald-300/10 bg-emerald-300/[0.04] p-4"><div className="flex items-center gap-2 text-emerald-200"><Sparkles size={15} /><span className="text-xs font-medium">Admin access</span></div><p className="mt-2 text-[11px] leading-relaxed text-gray-500">Platform-wide account and billing controls are enabled.</p></div><button onClick={handleLogout} className="mt-4 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-gray-500 hover:bg-red-400/5 hover:text-red-300"><LogOut size={16} />Sign out</button></aside>
+    {mobileNav && <button aria-label="Close navigation" onClick={() => setMobileNav(false)} className="fixed inset-0 z-30 bg-black/60 lg:hidden" />}
+    <main className="min-w-0 flex-1"><header className="sticky top-0 z-20 flex h-[74px] items-center justify-between border-b border-white/[0.07] bg-[#080b09]/90 px-5 backdrop-blur-xl sm:px-8"><div className="flex items-center gap-3"><button onClick={() => setMobileNav(true)} className="rounded-lg p-2 text-gray-400 hover:bg-white/5 lg:hidden"><Menu size={19} /></button><div><div className="flex items-center gap-2"><h1 className="text-lg font-semibold text-white">{titles[section][0]}</h1><ChevronDown size={14} className="text-gray-600" /></div><p className="hidden text-xs text-gray-500 sm:block">{titles[section][1]}</p></div></div><div className="flex items-center gap-2"><span className="hidden items-center gap-2 rounded-full border border-emerald-300/10 bg-emerald-300/[0.04] px-3 py-1.5 text-xs text-emerald-200 sm:flex"><span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />System online</span><Link href="/"><button className="rounded-lg border border-white/10 px-3 py-2 text-xs text-gray-400 hover:text-white">View site</button></Link></div></header><div className="mx-auto max-w-[1500px] p-5 sm:p-8"><div className="mb-6 flex items-end justify-between"><div><h2 className="text-2xl font-semibold tracking-tight text-white">{section === "overview" ? "Good to see you" : titles[section][0]}</h2><p className="mt-1 text-sm text-gray-500">{section === "overview" ? "Here’s what’s happening across your platform today." : titles[section][1]}</p></div><div className="hidden items-center gap-2 text-xs text-gray-500 md:flex"><Clock3 size={14} />Updated just now</div></div>{(accountsQuery.isError || paymentsQuery.isError || settingsQuery.isError) && <div className="mb-5 flex items-center justify-between rounded-xl border border-red-400/20 bg-red-400/[0.05] px-4 py-3 text-sm text-red-300"><span>{(accountsQuery.error || paymentsQuery.error || settingsQuery.error) instanceof Error ? (accountsQuery.error || paymentsQuery.error || settingsQuery.error as Error).message : "Could not load dashboard data."}</span><button onClick={handleLogout} className="underline">Sign in again</button></div>}{sectionContent()}</div></main></div></div>;
 }
+
+function Panel({ title, subtitle, action, children }: { title: string; subtitle: string; action?: ReactNode; children: ReactNode }) {
+  return <section className="rounded-2xl border border-white/[0.08] bg-[#111713] p-5 sm:p-6"><div className="mb-5 flex items-start justify-between gap-3"><div><h3 className="text-sm font-semibold text-white">{title}</h3><p className="mt-1 text-xs text-gray-500">{subtitle}</p></div>{action}</div>{children}</section>;
+}
+function Snapshot({ label, value }: { label: string; value: number }) { return <div className="flex items-center justify-between border-b border-white/[0.06] pb-3 last:border-0 last:pb-0"><span className="text-sm text-gray-400">{label}</span><span className="text-sm font-semibold text-white">{value}</span></div>; }
+function EmptyState({ text }: { text: string }) { return <div className="rounded-xl border border-dashed border-white/10 py-10 text-center text-sm text-gray-500">{text}</div>; }
+function StatusPill({ value }: { value: string }) { const good = ["success", "active", "verified"].includes(value.toLowerCase()); return <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium capitalize ${good ? "bg-emerald-300/10 text-emerald-200" : value === "initialized" ? "bg-amber-300/10 text-amber-200" : "bg-white/[0.06] text-gray-400"}`}>{value.replaceAll("_", " ")}</span>; }
+function TransactionTable({ payments }: { payments: Payment[] }) {
+  if (!payments.length) return <EmptyState text="No transactions to show." />;
+  return <div className="overflow-x-auto"><table className="w-full min-w-[600px] text-left text-sm"><thead className="text-xs uppercase tracking-wide text-gray-500"><tr><th className="pb-3 font-medium">Customer</th><th className="pb-3 font-medium">Reference</th><th className="pb-3 font-medium">Amount</th><th className="pb-3 font-medium">Status</th><th className="pb-3 font-medium">Date</th></tr></thead><tbody className="divide-y divide-white/[0.06]">{payments.map((payment) => <tr key={payment.id}><td className="py-3"><p className="text-gray-200">{payment.email}</p><p className="text-[11px] text-gray-600">Account #{payment.accountId}</p></td><td className="py-3 font-mono text-xs text-gray-400">{payment.reference}</td><td className="py-3 font-medium text-white">{moneyLabel(payment.amountMinor, payment.currency)}</td><td className="py-3"><StatusPill value={payment.status} /></td><td className="py-3 text-gray-500">{dateLabel(payment.paidAt || payment.createdAt)}</td></tr>)}</tbody></table></div>;
+}
+function AccountTable({ accounts, onManage }: { accounts: Account[]; onManage: () => void }) {
+  if (!accounts.length) return <EmptyState text="No users have registered yet." />;
+  return <div className="overflow-x-auto"><table className="w-full min-w-[600px] text-left text-sm"><thead className="text-xs uppercase tracking-wide text-gray-500"><tr><th className="pb-3 font-medium">User</th><th className="pb-3 font-medium">GitHub</th><th className="pb-3 font-medium">Sites</th><th className="pb-3 font-medium">Joined</th><th /></tr></thead><tbody className="divide-y divide-white/[0.06]">{accounts.map((account) => <tr key={account.id}><td className="py-3 text-gray-200">{account.email}</td><td className="py-3 text-gray-400">{account.githubUsername || "Not connected"}</td><td className="py-3 text-gray-300">{account.sites.length}</td><td className="py-3 text-gray-500">{dateLabel(account.createdAt)}</td><td className="py-3 text-right"><button onClick={onManage} className="text-xs text-emerald-300">Manage</button></td></tr>)}</tbody></table></div>;
+}
+function UserCard({ account, days, setDays, onExtend, pending }: { account: Account; days: number; setDays: (days: number) => void; onExtend: () => void; pending: boolean }) {
+  const [custom, setCustom] = useState(false); const currentEnd = account.paidUntil || account.trialEndsAt;
+  return <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-4 sm:p-5"><div className="flex flex-wrap items-start justify-between gap-4"><div className="flex min-w-0 items-start gap-3"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-300/10 text-sm font-semibold text-sky-200">{account.email.slice(0, 1).toUpperCase()}</div><div className="min-w-0"><p className="truncate font-medium text-white">{account.email}</p><p className="mt-1 text-xs text-gray-500">{account.githubUsername ? `@${account.githubUsername}` : "GitHub not connected"} · Joined {dateLabel(account.createdAt)}</p></div></div><div className="text-right"><p className="text-sm font-medium capitalize text-gray-200">{account.plan} plan</p><p className="mt-1 text-xs text-gray-500">{account.sites.length} pair site{account.sites.length === 1 ? "" : "s"} · {account.siteCredits} site credits</p></div></div><div className="mt-4 grid gap-4 border-t border-white/[0.06] pt-4 md:grid-cols-[1fr_auto]"><div className="space-y-2">{account.sites.length ? account.sites.map((site) => <div key={site.id} className="flex flex-wrap items-center justify-between gap-2 text-xs"><span className="text-gray-300">{site.name} <span className="text-gray-600">· {site.subdomain}</span></span><span className="text-gray-500">Access through {dateLabel(site.expiresAt)}</span></div>) : <p className="text-xs text-gray-500">No pair sites yet. Account access through {dateLabel(currentEnd)}.</p>}</div><div className="flex flex-wrap items-center gap-2 md:justify-end"><span className="text-xs text-gray-500">Extend access</span><select value={custom ? "custom" : days} onChange={(e) => { if (e.target.value === "custom") setCustom(true); else { setCustom(false); setDays(Number(e.target.value)); } }} className="rounded-lg border border-white/10 bg-[#0d120f] px-2.5 py-2 text-xs text-gray-200 outline-none"><option value={30}>30 days</option><option value={90}>90 days</option><option value={180}>180 days</option><option value={365}>1 year</option><option value="custom">Custom</option></select>{custom && <input aria-label="Custom extension days" type="number" min={1} max={3650} value={days} onChange={(e) => setDays(Math.max(1, Math.min(3650, Number(e.target.value))))} className="w-20 rounded-lg border border-white/10 bg-[#0d120f] px-2 py-2 text-xs text-white" />}<button onClick={onExtend} disabled={pending || days < 1} className="rounded-lg bg-emerald-300/10 px-3 py-2 text-xs font-medium text-emerald-200 hover:bg-emerald-300/15 disabled:opacity-50">{pending ? "Applying…" : `Add ${days} days`}</button></div></div></div>;
+}
+function SettingsPanel({ password, settings, onSave, saving, links, onLinksSaved, onBroadcast, broadcasting }: { password: string; settings?: Settings; onSave: (settings: Settings) => void; saving: boolean; links: QuickLink[]; onLinksSaved: () => void; onBroadcast: (value: { subject: string; message: string }) => void; broadcasting: boolean }) {
+  const [draft, setDraft] = useState<Settings | null>(null); const [announcement, setAnnouncement] = useState({ subject: "", message: "" }); const [showcase, setShowcase] = useState<boolean | null>(null);
+  const value = draft || settings; const linksSorted = [...links].sort((a, b) => a.order - b.order);
+  if (!value) return <EmptyState text="Loading platform settings…" />;
+  const change = (key: keyof Settings, next: string | number | boolean) => setDraft({ ...value, [key]: next });
+  return <div className="grid gap-5 xl:grid-cols-2"><Panel title="Platform defaults" subtitle="Control trial, site allowance, and pricing"><div className="grid gap-4 sm:grid-cols-2"><Field label="Trial period (days)" value={value.trialDays} onChange={(n) => change("trialDays", n)} /><Field label="Free site limit" value={value.freeSiteLimit} onChange={(n) => change("freeSiteLimit", n)} /><Field label="Price (minor units)" value={value.priceMinor} onChange={(n) => change("priceMinor", n)} /><label className="text-xs text-gray-500">Currency<input value={value.currency} onChange={(e) => change("currency", e.target.value.toUpperCase())} className="mt-2 w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2.5 text-sm text-white" /></label><label className="text-xs text-gray-500 sm:col-span-2">Default group invite code<input value={value.defaultGroupInviteCode || ""} onChange={(e) => change("defaultGroupInviteCode", e.target.value)} className="mt-2 w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2.5 text-sm text-white" /></label><label className="text-xs text-gray-500 sm:col-span-2">Default channel JID<input value={value.defaultChannelJid || ""} onChange={(e) => change("defaultChannelJid", e.target.value)} className="mt-2 w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2.5 text-sm text-white" /></label></div><div className="mt-5 flex items-center justify-between border-t border-white/[0.06] pt-4"><label className="flex items-center gap-2 text-sm text-gray-300"><input type="checkbox" checked={showcase ?? value.showcaseEnabled} onChange={(e) => setShowcase(e.target.checked)} className="accent-emerald-300" />Public developer showcase</label><button onClick={() => onSave({ ...value, showcaseEnabled: showcase ?? value.showcaseEnabled })} disabled={saving} className="rounded-lg bg-emerald-300/10 px-4 py-2 text-sm text-emerald-200 disabled:opacity-50">{saving ? "Saving…" : "Save settings"}</button></div></Panel><Panel title="Quick links" subtitle="Edit links shown on the public site">{linksSorted.length ? <div className="space-y-2">{linksSorted.map((link) => <QuickLinkRow key={link.key} link={link} password={password} onSaved={onLinksSaved} />)}</div> : <EmptyState text="No quick links configured." />}</Panel><div className="xl:col-span-2"><Panel title="Email announcement" subtitle="Send a platform update to all registered account emails"><div className="grid gap-3 md:grid-cols-2"><input value={announcement.subject} onChange={(e) => setAnnouncement({ ...announcement, subject: e.target.value })} placeholder="Announcement subject" className="rounded-lg border border-white/10 bg-black/20 px-3 py-2.5 text-sm text-white" /><div className="flex items-center gap-2 text-xs text-gray-500"><Send size={14} /> Sent through your configured email provider</div><textarea rows={5} value={announcement.message} onChange={(e) => setAnnouncement({ ...announcement, message: e.target.value })} placeholder="Write your message…" className="md:col-span-2 rounded-lg border border-white/10 bg-black/20 px-3 py-2.5 text-sm text-white" /></div><button onClick={() => onBroadcast(announcement)} disabled={broadcasting || !announcement.subject.trim() || !announcement.message.trim()} className="mt-4 rounded-lg bg-emerald-300/10 px-4 py-2.5 text-sm font-medium text-emerald-200 disabled:opacity-40">{broadcasting ? "Sending announcement…" : "Send to all users"}</button></Panel></div></div>;
+}
+function Field({ label, value, onChange }: { label: string; value: number; onChange: (value: number) => void }) { return <label className="text-xs text-gray-500">{label}<input type="number" value={value} onChange={(e) => onChange(Number(e.target.value))} className="mt-2 w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2.5 text-sm text-white" /></label>; }

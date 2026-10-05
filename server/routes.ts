@@ -336,8 +336,9 @@ export async function registerRoutes(
         const [{ value: siteCount }] = await db.select({ value: count() }).from(sites).where(eq(sites.accountId, account.id));
         const settings = (await storage.getAdminSettings());
         const trialEnd = accountRow?.trialEndsAt || new Date((accountRow?.trialStartedAt || new Date()).getTime() + settings.trialDays * 86400000);
-        siteExpiresAt = trialEnd > new Date() ? trialEnd : new Date(Date.now() + settings.trialDays * 86400000);
-        const trialActive = trialEnd > new Date();
+        const accessEnd = accountRow?.paidUntil && accountRow.paidUntil > trialEnd ? accountRow.paidUntil : trialEnd;
+        siteExpiresAt = accessEnd > new Date() ? accessEnd : new Date(Date.now() + settings.trialDays * 86400000);
+        const trialActive = accessEnd > new Date();
         const allowed = accountRow?.siteLimitOverride ?? (trialActive ? settings.freeSiteLimit : 0);
         if (Number(siteCount) >= allowed && (accountRow?.siteCredits || 0) < 1) {
           return res.status(402).json({ error: trialActive ? "Your free site limit has been reached" : "Your free trial has expired. Please pay for another pair site.", code: "PAYMENT_REQUIRED" });
@@ -551,7 +552,8 @@ export async function registerRoutes(
     const [{ value: siteCount }] = await db.select({ value: count() }).from(sites).where(eq(sites.accountId, req.user!.id));
     const settings = await storage.getAdminSettings();
     const trialEndsAt = account?.trialEndsAt || new Date((account?.trialStartedAt || new Date()).getTime() + settings.trialDays * 86400000);
-    return res.json({ trialEndsAt, trialActive: trialEndsAt > new Date(), siteCount: Number(siteCount), siteLimit: account?.siteLimitOverride ?? settings.freeSiteLimit, siteCredits: account?.siteCredits ?? 0, priceMinor: settings.priceMinor, currency: settings.currency });
+    const accessEndsAt = account?.paidUntil && account.paidUntil > trialEndsAt ? account.paidUntil : trialEndsAt;
+    return res.json({ trialEndsAt, accessEndsAt, trialActive: accessEndsAt > new Date(), siteCount: Number(siteCount), siteLimit: account?.siteLimitOverride ?? settings.freeSiteLimit, siteCredits: account?.siteCredits ?? 0, priceMinor: settings.priceMinor, currency: settings.currency });
   });
 
   app.post("/api/billing/initialize", requireAuth, async (req, res) => {
@@ -648,13 +650,35 @@ export async function registerRoutes(
     if (req.headers["x-admin-password"] !== (process.env.ADMIN_PASSWORD || "Silentwolf906.")) return res.status(401).json({ error: "Unauthorized" });
     if (!db) return res.json([]);
     const rows = await db.select().from(accounts).orderBy(desc(accounts.createdAt));
-    return res.json(rows.map(({ passwordHash, ...safe }) => safe));
+    const allSites = await db.select().from(sites).orderBy(desc(sites.createdAt));
+    return res.json(rows.map(({ passwordHash, ...safe }) => ({ ...safe, sites: allSites.filter((site) => site.accountId === safe.id) })));
   });
 
   app.get("/api/admin/payments", async (req, res) => {
     if (req.headers["x-admin-password"] !== (process.env.ADMIN_PASSWORD || "Silentwolf906.")) return res.status(401).json({ error: "Unauthorized" });
     if (!db) return res.json([]);
-    return res.json(await db.select().from(payments).orderBy(desc(payments.createdAt)));
+    const rows = await db.select().from(payments).orderBy(desc(payments.createdAt));
+    const accountRows = await db.select({ id: accounts.id, email: accounts.email }).from(accounts);
+    const emailById = new Map(accountRows.map((account) => [account.id, account.email]));
+    return res.json(rows.map((payment) => ({ ...payment, email: emailById.get(payment.accountId) || "Unknown account" })));
+  });
+
+  app.post("/api/admin/accounts/:id/access", async (req, res) => {
+    if (req.headers["x-admin-password"] !== (process.env.ADMIN_PASSWORD || "Silentwolf906.")) return res.status(401).json({ error: "Unauthorized" });
+    if (!db) return res.status(503).json({ error: "Database not configured" });
+    const parsed = z.object({ days: z.number().int().min(1).max(3650) }).safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: "Choose an extension between 1 and 3650 days" });
+    const accountId = Number(req.params.id);
+    if (!Number.isSafeInteger(accountId) || accountId < 1) return res.status(400).json({ error: "Invalid account" });
+    const [account] = await db.select().from(accounts).where(eq(accounts.id, accountId)).limit(1);
+    if (!account) return res.status(404).json({ error: "Account not found" });
+    const now = new Date();
+    const [siteExpiry] = await db.select({ latest: sql<Date | null>`max(${sites.expiresAt})` }).from(sites).where(eq(sites.accountId, accountId));
+    const currentAccessEnd = [account.paidUntil, siteExpiry?.latest].filter((date): date is Date => !!date && date > now).sort((a, b) => b.getTime() - a.getTime())[0] || now;
+    const nextAccessEnd = new Date(currentAccessEnd.getTime() + parsed.data.days * 86400000);
+    await db.update(accounts).set({ paidUntil: nextAccessEnd }).where(eq(accounts.id, accountId));
+    await db.update(sites).set({ expiresAt: nextAccessEnd }).where(eq(sites.accountId, accountId));
+    return res.json({ paidUntil: nextAccessEnd, extendedDays: parsed.data.days });
   });
 
   app.post("/api/admin/broadcast", async (req, res) => {
