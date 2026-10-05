@@ -20,7 +20,7 @@ import { SITE_TEMPLATES, isValidTemplateId } from "@shared/templates";
 import { log } from "./index";
 import { db } from "./db";
 import { accounts, adminSettings, domains, payments, sites, sessionsLog, getSiteUiConfig, DEFAULT_BOT_CONFIG, updateAccountEmailSchema } from "@shared/schema";
-import { eq, desc, count, inArray, and } from "drizzle-orm";
+import { eq, desc, count, inArray, and, sql } from "drizzle-orm";
 import crypto from "node:crypto";
 import { resolveTxt } from "node:dns/promises";
 
@@ -330,6 +330,7 @@ export async function registerRoutes(
       const { name, subdomain, templateId, repoUrl, whatsappGroupLink, channelLink, sessionPrefix, imageUrl } = parsed.data;
       const account = req.user!;
       let siteExpiresAt = new Date(Date.now() + 30 * 86400000);
+      let consumesSiteCredit = false;
 
       if (db) {
         const [accountRow] = await db.select().from(accounts).where(eq(accounts.id, account.id)).limit(1);
@@ -340,6 +341,7 @@ export async function registerRoutes(
         siteExpiresAt = accessEnd > new Date() ? accessEnd : new Date(Date.now() + settings.trialDays * 86400000);
         const trialActive = accessEnd > new Date();
         const allowed = accountRow?.siteLimitOverride ?? (trialActive ? settings.freeSiteLimit : 0);
+        consumesSiteCredit = Number(siteCount) >= allowed && (accountRow?.siteCredits || 0) > 0;
         if (Number(siteCount) >= allowed && (accountRow?.siteCredits || 0) < 1) {
           return res.status(402).json({ error: trialActive ? "Your free site limit has been reached" : "Your free trial has expired. Please pay for another pair site.", code: "PAYMENT_REQUIRED" });
         }
@@ -431,7 +433,7 @@ export async function registerRoutes(
 
       if (db) {
         const [accountRow] = await db.select().from(accounts).where(eq(accounts.id, account.id)).limit(1);
-        if ((accountRow?.siteCredits || 0) > 0) await db.update(accounts).set({ siteCredits: (accountRow?.siteCredits || 0) - 1 }).where(eq(accounts.id, account.id));
+        if (consumesSiteCredit && (accountRow?.siteCredits || 0) > 0) await db.update(accounts).set({ siteCredits: (accountRow?.siteCredits || 0) - 1 }).where(eq(accounts.id, account.id));
       }
 
       const platformDomain = (process.env.PLATFORM_DOMAIN || "pairsite.space").replace(/^https?:\/\//, "").replace(/\/$/, "");
@@ -679,6 +681,23 @@ export async function registerRoutes(
     await db.update(accounts).set({ paidUntil: nextAccessEnd }).where(eq(accounts.id, accountId));
     await db.update(sites).set({ expiresAt: nextAccessEnd }).where(eq(sites.accountId, accountId));
     return res.json({ paidUntil: nextAccessEnd, extendedDays: parsed.data.days });
+  });
+
+  app.patch("/api/admin/accounts/:id/plan", async (req, res) => {
+    if (req.headers["x-admin-password"] !== (process.env.ADMIN_PASSWORD || "Silentwolf906.")) return res.status(401).json({ error: "Unauthorized" });
+    if (!db) return res.status(503).json({ error: "Database not configured" });
+    const parsed = z.object({ plan: z.enum(["free", "paid"]), siteLimit: z.number().int().min(1).max(1000).optional() }).safeParse(req.body);
+    if (!parsed.success || (parsed.data.plan === "paid" && parsed.data.siteLimit === undefined)) {
+      return res.status(400).json({ error: "Choose a valid plan and set a site limit from 1 to 1000 for paid accounts" });
+    }
+    const accountId = Number(req.params.id);
+    if (!Number.isSafeInteger(accountId) || accountId < 1) return res.status(400).json({ error: "Invalid account" });
+    const [updated] = await db.update(accounts).set({
+      plan: parsed.data.plan,
+      siteLimitOverride: parsed.data.plan === "paid" ? parsed.data.siteLimit! : null,
+    }).where(eq(accounts.id, accountId)).returning({ id: accounts.id, plan: accounts.plan, siteLimitOverride: accounts.siteLimitOverride });
+    if (!updated) return res.status(404).json({ error: "Account not found" });
+    return res.json(updated);
   });
 
   app.post("/api/admin/broadcast", async (req, res) => {

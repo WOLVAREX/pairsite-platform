@@ -79,7 +79,7 @@ export interface SessionResponse {
 // pair sites, custom domains, templates, and clone protection.
 // ─────────────────────────────────────────────────────────────
 
-export const planEnum = ["free", "starter", "pro", "unlimited"] as const;
+export const planEnum = ["free", "starter", "pro", "unlimited", "paid"] as const;
 export type Plan = typeof planEnum[number];
 
 export const siteVerificationStatusEnum = [
