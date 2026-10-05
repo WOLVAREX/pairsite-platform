@@ -28,6 +28,16 @@ function paystackSecret(): string | undefined {
   return process.env.PAYSTACK_SECRET_KEY || process.env.PAYSTACK_LIVE_KEY;
 }
 
+function paymentStatusFromProvider(status: unknown): "success" | "failed" | "abandoned" | "reversed" | "pending" {
+  if (typeof status !== "string") return "pending";
+  const normalized = status.toLowerCase();
+  if (normalized === "success") return "success";
+  if (normalized === "failed") return "failed";
+  if (normalized === "abandoned") return "abandoned";
+  if (normalized === "reversed") return "reversed";
+  return "pending";
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -575,23 +585,38 @@ export async function registerRoutes(
     if (!payment || payment.accountId !== req.user!.id) return res.status(404).json({ error: "Payment not found" });
     const response = await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(payment.reference)}`, { headers: { Authorization: `Bearer ${paystackSecret()}` } });
     const result: any = await response.json();
-    if (result.status && result.data?.status === "success") {
-      await db.update(payments).set({ status: "success", paidAt: new Date(), metadata: result.data }).where(eq(payments.id, payment.id));
-      await db.update(accounts).set({ siteCredits: (await db.select({ credits: accounts.siteCredits }).from(accounts).where(eq(accounts.id, payment.accountId)).limit(1))[0].credits + 1 }).where(eq(accounts.id, payment.accountId));
+    const providerStatus = result.status ? paymentStatusFromProvider(result.data?.status) : "pending";
+    let currentStatus = payment.status;
+    if (result.status && result.data?.status) {
+      const [updated] = await db.update(payments).set({
+        status: providerStatus,
+        ...(providerStatus === "success" ? { paidAt: result.data.paid_at ? new Date(result.data.paid_at) : new Date() } : {}),
+        metadata: result.data,
+      }).where(and(eq(payments.id, payment.id), ne(payments.status, "success"))).returning({ id: payments.id });
+      if (providerStatus === "success" && updated) {
+        await db.update(accounts).set({ siteCredits: sql`${accounts.siteCredits} + 1` }).where(eq(accounts.id, payment.accountId));
+      }
+      if (updated || payment.status === "success") currentStatus = providerStatus === "success" || payment.status === "success" ? "success" : providerStatus;
     }
-    return res.json({ status: result.data?.status || "pending", reference: payment.reference });
+    return res.json({ status: currentStatus === "initialized" ? "pending" : currentStatus, reference: payment.reference });
   });
 
   app.post("/api/billing/webhook", async (req, res) => {
     const signature = req.headers["x-paystack-signature"];
     const expected = paystackSecret() ? crypto.createHmac("sha512", paystackSecret()!).update(JSON.stringify(req.body)).digest("hex") : "";
     if (!signature || signature !== expected) return res.status(401).json({ error: "Invalid signature" });
-    if (db && req.body?.event === "charge.success" && req.body.data?.reference) {
+    const webhookStatus = req.body?.event === "charge.success" ? "success" : req.body?.event === "charge.failed" ? "failed" : null;
+    if (db && webhookStatus && req.body.data?.reference) {
       const [payment] = await db.select().from(payments).where(eq(payments.reference, req.body.data.reference)).limit(1);
-      if (payment && payment.status !== "success") {
-        await db.update(payments).set({ status: "success", paidAt: new Date(), metadata: req.body.data }).where(eq(payments.id, payment.id));
-        const [account] = await db.select().from(accounts).where(eq(accounts.id, payment.accountId)).limit(1);
-        if (account) await db.update(accounts).set({ siteCredits: account.siteCredits + 1 }).where(eq(accounts.id, account.id));
+      if (payment) {
+        const [updated] = await db.update(payments).set({
+          status: webhookStatus,
+          ...(webhookStatus === "success" ? { paidAt: req.body.data.paid_at ? new Date(req.body.data.paid_at) : new Date() } : {}),
+          metadata: req.body.data,
+        }).where(and(eq(payments.id, payment.id), ne(payments.status, "success"))).returning({ id: payments.id });
+        if (webhookStatus === "success" && updated) {
+          await db.update(accounts).set({ siteCredits: sql`${accounts.siteCredits} + 1` }).where(eq(accounts.id, payment.accountId));
+        }
       }
     }
     return res.sendStatus(200);
